@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}整改 · {{ project.name }}{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 整改与复测{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div>
+    <div class="mini-label">漏洞 → 修复 → 复测 → 关闭</div>
+    <h1>整改与复测</h1>
+    <p>跟踪漏洞负责人和整改状态，并复用 Proof Capsule 验证器进行有证据支撑的复测。</p>
+  </div>
+  <a class="btn" href="/projects/{{ project.id }}/findings">漏洞发现</a>
+</div>
+
+<section class="metric-strip four">
+  <div><span>总数</span><b>{{ remediation_summary.count }}</b></div>
+  <div><span>待处理</span><b>{{ remediation_summary.open }}</b></div>
+  <div><span>整改中</span><b>{{ remediation_summary.remediation }}</b></div>
+  <div><span>已解决</span><b>{{ remediation_summary.resolved }}</b></div>
+</section>
+
+<div class="remediation-board">
+  {% for status in ['open','triaged','remediation','retest_ready','resolved','accepted_risk','false_positive'] %}
+  <section class="remediation-column">
+    <div class="remediation-column-head"><b>{{ status|replace('_',' ') }}</b><span>{{ remediation_columns.get(status,[])|length }}</span></div>
+    <div class="remediation-cards">
+      {% for row in remediation_columns.get(status,[]) %}
+      {% set f = finding_map.get(row.finding_id) %}
+      <a href="/projects/{{ project.id }}/remediation?selected={{ row.id }}" class="{% if selected_lifecycle and selected_lifecycle.id==row.id %}active{% endif %}">
+        <div><span class="severity {{ f.severity if f else 'info' }}">{{ f.severity if f else 'info' }}</span><span class="remediation-priority {{ row.priority }}">{{ row.priority }}</span></div>
+        <b>{{ f.title if f else '漏洞 #' ~ row.finding_id }}</b>
+        <small>{{ f.target if f else '' }}</small>
+        <footer><span>{{ row.owner or 'unassigned' }}</span><span>{{ row.retest_status }}</span></footer>
+      </a>
+      {% else %}<div class="empty small">暂无</div>{% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+</div>
+
+{% if selected_lifecycle and selected_finding %}
+<div class="remediation-detail-grid">
+  <section class="panel">
+    <div class="finding-flags"><span class="severity {{ selected_finding.severity }}">{{ selected_finding.severity }}</span><span>#{{ selected_finding.id }}</span></div>
+    <h2>{{ selected_finding.title }}</h2>
+    <code>{{ selected_finding.target }}</code>
+    <p class="muted">{{ selected_finding.description }}</p>
+
+    <form method="post" action="/projects/{{ project.id }}/remediation/{{ selected_lifecycle.id }}/update" class="remediation-form">
+      <div><label>状态</label><select name="status" class="select-control">{% for s in valid_statuses %}<option value="{{ s }}" {% if selected_lifecycle.status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+      <div><label>优先级</label><select name="priority" class="select-control">{% for p in valid_priorities %}<option value="{{ p }}" {% if selected_lifecycle.priority==p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></div>
+      <div class="wide"><label>负责人</label><input name="owner" value="{{ selected_lifecycle.owner }}" placeholder="团队 / 工程师 / 测试人员"></div>
+      <div class="wide"><label>整改说明</label><textarea name="remediation_note" placeholder="修复说明、变更记录、复测预期…">{{ selected_lifecycle.remediation_note }}</textarea></div>
+      <div class="wide action-row"><button class="btn primary" type="submit">保存流程</button><a class="btn" href="/findings/{{ selected_finding.id }}">打开漏洞</a></div>
+    </form>
+  </section>
+
+  <aside class="panel">
+    <div class="mini-label">复测约束</div>
+    <div class="key-value">
+      <div><span>整改状态</span><b>{{ selected_lifecycle.status }}</b></div>
+      <div><span>复测状态</span><b>{{ selected_lifecycle.retest_status }}</b></div>
+      <div><span>Proof Capsule</span><b>{% if selected_lifecycle.proof_capsule_id %}#{{ selected_lifecycle.proof_capsule_id }}{% else %}未创建{% endif %}</b></div>
+      <div><span>最近复测</span><b>{% if selected_lifecycle.last_retest_run_id %}#{{ selected_lifecycle.last_retest_run_id }}{% else %}—{% endif %}</b></div>
+    </div>
+    <form method="post" action="/projects/{{ project.id }}/remediation/{{ selected_lifecycle.id }}/retest" id="remediationRetestForm">
+      <button class="btn primary full" type="submit">加入验证复测队列</button>
+    </form>
+    <div class="context-help">如果没有可用的确定性验证器，Proof Capsule 会返回 <code>needs_review</code> ，而不会伪造通过/失败结果。</div>
+    {% if selected_retest %}
+    <div class="remediation-last-retest"><span class="proof-state {{ selected_retest.status }}">{{ selected_retest.status }}</span><p>{{ selected_retest.detail }}</p></div>
+    {% endif %}
+  </aside>
+</div>
+
+<section class="panel flush">
+  <div class="panel-title"><div><h2>整改时间线</h2><small>仅追加整改事件</small></div></div>
+  <div class="remediation-events">
+    {% for e in remediation_events %}
+    <div><span>#{{ e.id }}</span><div><b>{{ e.event_type }} · {{ e.from_status or '—' }} → {{ e.to_status or '—' }}</b><small>{{ e.detail }}</small></div><span>{{ e.source }}</span></div>
+    {% else %}<div class="empty small">暂无整改事件。</div>{% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if selected_lifecycle and selected_lifecycle.retest_status in ['queued','running'] %}
+<script>window.REMEDIATION_RETEST={projectId:{{ project.id }},lifecycleId:{{ selected_lifecycle.id }},status:"{{ selected_lifecycle.retest_status }}"};</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}权限案例 #{{ case.id }} · {{ project.name }}{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 越权验证 / Case #{{ case.id }}{% endblock %}
+{% block content %}
+<div class="finding-header authz-case-header">
+  <div>
+    <div class="finding-flags">
+      <span class="authz-type {{ case.test_type }}">{{ case.test_type }}</span>
+      <span class="authz-verdict {{ case.classification }}">{{ case.classification }}</span>
+      <span>Case #{{ case.id }}</span>
+    </div>
+    <h1>{{ case.object_label or (stored.method ~ ' ' ~ (stored.url|redact_url)) }}</h1>
+    <code>{{ stored.method }} {{ stored.url|redact_url }}</code>
+  </div>
+  <div class="action-row">
+    {% if diff %}<a class="btn" href="/projects/{{ project.id }}/diff/{{ diff.id }}">Open raw diff</a>{% endif %}
+    {% if case.finding_id %}<a class="btn primary" href="/findings/{{ case.finding_id }}">Candidate finding #{{ case.finding_id }}</a>{% endif %}
+    <a class="btn" href="/projects/{{ project.id }}/authorization">返回</a>
+  </div>
+</div>
+
+<div class="authz-scoreboard">
+  <div>
+    <span>CONFIDENCE</span>
+    <b class="{% if case.confidence >= 85 %}authz-candidate-text{% elif case.confidence >= 60 %}authz-review-text{% endif %}">{{ case.confidence }}%</b>
+  </div>
+  <div><span>TEST TYPE</span><b>{{ case.test_type }}</b></div>
+  <div><span>BASELINE HTTP</span><b>{{ baseline.status_code if baseline else '—' }}</b></div>
+  <div><span>COMPARISON HTTP</span><b>{{ comparison.status_code if comparison else '—' }}</b></div>
+  <div><span>SIMILARITY</span><b>{{ summary.similarity if summary else '—' }}</b></div>
+</div>
+
+<div class="authz-detail-grid">
+  <section class="panel">
+    <div class="panel-title"><div><h2>权限验证结论</h2><small>Candidate classification, not automatic proof of exploitation</small></div></div>
+    <div class="authz-verdict-block">
+      <span class="authz-verdict large {{ case.classification }}">{{ case.classification }}</span>
+      <p>
+        {% if summary.manual_confirmation_required %}
+        Manual confirmation is required before treating this result as a confirmed vulnerability.
+        {% else %}
+        The observed response pattern currently supports the classification shown above.
+        {% endif %}
+      </p>
+    </div>
+
+    <div class="mini-label">RATIONALE</div>
+    <ul class="rationale-list">
+      {% for reason in summary.rationale or [] %}
+      <li>{{ reason }}</li>
+      {% else %}
+      <li>No rationale recorded.</li>
+      {% endfor %}
+    </ul>
+
+    <div class="mini-label">JSON DIFFERENCE SUMMARY</div>
+    <div class="diff-metrics">
+      <div><span>Changed</span><b>{{ summary.json_changes.changed if summary.json_changes else 0 }}</b></div>
+      <div><span>Added</span><b>{{ summary.json_changes.added if summary.json_changes else 0 }}</b></div>
+      <div><span>Removed</span><b>{{ summary.json_changes.removed if summary.json_changes else 0 }}</b></div>
+      <div><span>Similarity</span><b>{{ summary.similarity }}</b></div>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <div class="mini-label">IDENTITY COMPARISON</div>
+    <div class="identity-compare-card">
+      <div>
+        <span>BASELINE</span>
+        <b>{{ summary.baseline.identity if summary.baseline else '—' }}</b>
+        <small>HTTP {{ summary.baseline.status_code if summary.baseline else '—' }} · {{ summary.baseline.length if summary.baseline else '—' }} chars</small>
+      </div>
+      <div class="compare-arrow">↔</div>
+      <div>
+        <span>COMPARISON</span>
+        <b>{{ summary.comparison.identity if summary.comparison else '—' }}</b>
+        <small>HTTP {{ summary.comparison.status_code if summary.comparison else '—' }} · {{ summary.comparison.length if summary.comparison else '—' }} chars</small>
+      </div>
+    </div>
+
+    {% if case.expected_owner_identity_id %}
+    <div class="owner-note"><span>Expected owner</span><b>{{ identity_map.get(case.expected_owner_identity_id).name if identity_map.get(case.expected_owner_identity_id) else 'Identity #' ~ case.expected_owner_identity_id }}</b></div>
+    {% endif %}
+
+    <div class="mini-label sensitive-label">SENSITIVE-LOOKING JSON PATHS</div>
+    <div class="sensitive-paths">
+      <div>
+        <span>Baseline</span>
+        {% for p in summary.baseline.sensitive_paths or [] %}<code>{{ p }}</code>{% else %}<small>None detected</small>{% endfor %}
+      </div>
+      <div>
+        <span>Comparison</span>
+        {% for p in summary.comparison.sensitive_paths or [] %}<code>{{ p }}</code>{% else %}<small>None detected</small>{% endfor %}
+      </div>
+    </div>
+  </aside>
+</div>
+
+<section class="panel authz-ai-review">
+  <div class="panel-title">
+    <div><h2>AI 辅助复核</h2><small>Redacted structural evidence only — no Cookie, Authorization secret, or full response body is sent by this workflow</small></div>
+    <span class="source-tag">{{ ai_provider }}</span>
+  </div>
+  <div class="authz-ai-body">
+    <div>
+      <div class="mini-label">AI SECOND OPINION</div>
+      <p>{{ ai_review.assessment or 'No AI second opinion is available.' }}</p>
+    </div>
+    <div class="ai-review-meta">
+      <div><span>Risk view</span><b>{{ ai_review.risk or '—' }}</b></div>
+      <div><span>置信度 adjustment</span><b>{{ ai_review.confidence_adjustment or 0 }}</b></div>
+    </div>
+  </div>
+  {% if ai_review.manual_checks %}
+  <div class="manual-checks">
+    <div class="mini-label">MANUAL CONFIRMATION CHECKS</div>
+    <ul>{% for check in ai_review.manual_checks %}<li>{{ check }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+</section>
+
+{% if not case.finding_id and ('enforced' not in case.classification) and case.classification not in ['inconclusive','error','pending'] %}
+<section class="review-promotion-bar">
+  <div><b>Keep this candidate in the 漏洞发现 workflow?</b><small>Manual promotion does not mark the issue as confirmed; it creates a review 漏洞 linked to this evidence.</small></div>
+  <form method="post" action="/projects/{{ project.id }}/authorization/{{ case.id }}/promote"><button class="btn" type="submit">Promote to review 漏洞</button></form>
+</section>
+{% endif %}
+
+{% if diff_summary %}
+<section class="panel flush">
+  <div class="panel-title">
+    <div><h2>响应 differential</h2><small>Structural summary generated from replay #{{ case.baseline_replay_id }} and #{{ case.comparison_replay_id }}</small></div>
+    {% if diff %}<a href="/projects/{{ project.id }}/diff/{{ diff.id }}">Full diff →</a>{% endif %}
+  </div>
+  <div class="authz-diff-summary">
+    <div><span>状态</span><b>{{ diff_summary.status.left }} → {{ diff_summary.status.right }}</b></div>
+    <div><span>Length</span><b>{{ diff_summary.length.left }} → {{ diff_summary.length.right }}</b></div>
+    <div><span>Text similarity</span><b>{{ diff_summary.text_similarity }}</b></div>
+    <div><span>JSON fields changed</span><b>{{ diff_summary.signals.json_field_changes }}</b></div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

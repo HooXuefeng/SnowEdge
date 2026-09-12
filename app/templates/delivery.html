@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}报告交付 · SnowEdge{% endblock %}
+{% block content %}
+<div class="page-title-row"><div><h1>报告交付</h1><p>选择漏洞，保存固定交付版本，再导出。后续修改不会改变已有快照。</p></div><a class="btn" href="/projects/{{ project.id }}/reports">实时预览与完整预检</a></div>
+{% if error %}<p class="notice" role="alert">{{ error }}</p>{% endif %}
+<section class="panel scan-panel"><form method="post"><label>报告类型<select name="variant">{% for key,label in variants.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></label><p>客户版保留漏洞说明与证据索引；内部技术版包含脱敏证据摘录；复测版补充人工复测证据。AI 建议需在漏洞编辑页核对采纳后才进入报告。</p>
+{% for f in findings %}<div class="scan-result-item"><label><input type="checkbox" name="finding_ids" value="{{ f.id }}" {% if f.finding_state=='confirmed' %}checked{% endif %}> #{{ f.id }} {{ f.title }} · {{ f.severity|severity_zh }} · {{ f.finding_state|status_zh }} · {{ f.verification_state|status_zh }}</label><a href="/projects/{{ project.id }}/workflow/finding/{{ f.id }}">AI 研判与工具联动</a> · <a href="/findings/{{ f.id }}/edit">编辑内容</a></div>{% else %}<p>暂无漏洞，请先记录发现。</p>{% endfor %}
+<label><input type="checkbox" name="include_images" value="yes"> 包含截图及标注（已人工检查图片中的敏感信息）</label><p>快照保留候选／确认状态及证据缺口，不把未验证内容包装为已确认结论。</p><button class="btn primary">保存交付快照</button></form></section>
+<h2>已保存的交付版本</h2>{% for item in history %}<section class="panel scan-panel" id="snapshot-{{ item.id }}"><h3>{{ item.created_at }} · {{ item.variant }} · {{ item.count }} 条漏洞</h3>{% if item.warnings %}<details><summary>预检提示（{{ item.warnings|length }}）</summary><ul>{% for warning in item.warnings %}<li>{{ warning }}</li>{% endfor %}</ul></details>{% endif %}<div class="action-row">{% for fmt,label in [('docx','Word'),('html','HTML'),('md','Markdown')] %}<a class="btn" href="/projects/{{ project.id }}/reports/delivery/{{ item.id }}/{{ fmt }}">{{ label }}</a>{% endfor %}</div><small>内容摘要：{{ item.sha256 }}</small></section>{% else %}<p>尚未保存交付版本。</p>{% endfor %}
+<link rel="stylesheet" href="/static/scan-center.css">
+<style>.scan-panel{min-width:0;overflow-wrap:anywhere}.scan-panel small{display:block;overflow-wrap:anywhere}.scan-panel h3{font-size:18px}.scan-panel .action-row{flex-wrap:wrap}</style>
+{% endblock %}

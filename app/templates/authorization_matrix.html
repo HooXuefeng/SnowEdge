@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}权限矩阵 · {{ project.name }}{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 权限矩阵{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div>
+    <div class="mini-label">AUTHORIZATION MATRIX</div>
+    <h1>权限矩阵</h1>
+    <p>对你明确选择的只读 GET/HEAD 请求，在已配置身份之间进行差异验证。不会自动枚举对象 ID，也不会修改参数。</p>
+  </div>
+  <a class="btn" href="/projects/{{ project.id }}/authorization">单案例越权验证</a>
+</div>
+
+<div class="knowledge-safety-banner">
+  <div><span class="status-dot ok"></span><b>仅 GET / HEAD</b><small>非 READ_ONLY 请求无法进入矩阵执行。</small></div>
+  <div><span class="status-dot ok"></span><b>身份由人工选择</b><small>每次最多 6 个对照身份，可显式包含匿名身份。</small></div>
+  <div><span class="status-dot ok"></span><b>不做对象枚举</b><small>矩阵只复用原始 StoredRequest，不猜测或遍历 ID。</small></div>
+</div>
+
+<section class="panel auth-matrix-launch">
+  <div class="panel-title"><div><h2>新建矩阵验证</h2><small>选择一个基准身份和需要对照的身份。</small></div><span class="policy-tag">READ_ONLY</span></div>
+  <form method="post" action="/projects/{{ project.id }}/authorization-matrix/run">
+    <div>
+      <label>只读请求</label>
+      <select name="stored_request_id" class="select-control" required>
+        {% for r in requests %}<option value="{{ r.id }}">#{{ r.id }} · {{ r.method }} · {{ r.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>基准身份</label>
+      <select name="baseline_identity_id" class="select-control" required>
+        {% for i in identities %}<option value="{{ i.id }}">#{{ i.id }} · {{ i.name }} · {{ i.role }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="wide">
+      <label>对照身份（最多 6 个）</label>
+      <div class="auth-matrix-identities">
+        {% for i in identities %}
+        <label><input type="checkbox" name="comparison_identity_ids" value="{{ i.id }}"><span>{{ i.name }}</span><small>{{ i.role }}</small></label>
+        {% endfor %}
+        <label><input type="checkbox" name="include_anonymous" value="true"><span>匿名身份</span><small>Anonymous</small></label>
+      </div>
+    </div>
+    <div class="wide"><button class="btn primary" type="submit">加入任务队列并执行矩阵</button></div>
+  </form>
+</section>
+
+<section class="panel flush">
+  <div class="panel-title"><div><h2>已有权限矩阵</h2><small>来自历史 Authorization Case 的最新结论</small></div></div>
+  <div class="auth-matrix-table-wrap">
+    <table class="auth-matrix-table">
+      <thead>
+        <tr><th>请求</th>{% for i in identities %}<th>{{ i.name }}</th>{% endfor %}<th>匿名</th></tr>
+      </thead>
+      <tbody>
+      {% for row in rows %}
+        <tr>
+          <td><b>{{ row.request.method }} {{ row.request.name }}</b><small>{{ row.request.url|redact_url }}</small></td>
+          {% for i in identities %}
+          {% set case = row.cells.get(i.id|string) %}
+          <td>
+            {% if case %}
+            <a href="/projects/{{ project.id }}/authorization?selected={{ case.id }}" class="auth-matrix-cell {{ case.classification }}">
+              <b>{{ class_zh.get(case.classification,case.classification) }}</b><small>{{ case.confidence }}% · Case #{{ case.id }}</small>
+            </a>
+            {% else %}<span class="auth-matrix-empty">未验证</span>{% endif %}
+          </td>
+          {% endfor %}
+          <td>
+            {% if row.anonymous %}
+            <a href="/projects/{{ project.id }}/authorization?selected={{ row.anonymous.id }}" class="auth-matrix-cell {{ row.anonymous.classification }}">
+              <b>{{ class_zh.get(row.anonymous.classification,row.anonymous.classification) }}</b><small>{{ row.anonymous.confidence }}%</small>
+            </a>
+            {% else %}<span class="auth-matrix-empty">未验证</span>{% endif %}
+          </td>
+        </tr>
+      {% else %}<tr><td colspan="{{ identities|length + 2 }}">暂无可展示的只读请求。</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% if matrix_runs|length >= 2 %}<section class="panel matrix-compare-panel"><div class="panel-title"><div><h2>修复前 / 修复后矩阵对比</h2><small>只比较已经执行过的同一 Stored Request，不会新增任何网络请求</small></div></div><form method="get" action="/projects/{{ project.id }}/authorization-matrix" class="matrix-compare-form"><div><label>修复前</label><select name="compare_to" class="select-control">{% for r in matrix_runs %}<option value="{{ r.id }}" {% if compare_run and compare_run.id==r.id %}selected{% endif %}>Run #{{ r.id }} · {{ r.created_at.strftime('%m-%d %H:%M') if r.created_at else '' }}</option>{% endfor %}</select></div><div><label>修复后 / 当前</label><select name="selected_run" class="select-control">{% for r in matrix_runs %}<option value="{{ r.id }}" {% if selected_matrix_run and selected_matrix_run.id==r.id %}selected{% endif %}>Run #{{ r.id }} · {{ r.created_at.strftime('%m-%d %H:%M') if r.created_at else '' }}</option>{% endfor %}</select></div><div><label>&nbsp;</label><button class="btn" type="submit">比较历史矩阵</button></div></form>{% if matrix_comparison %}{% if not matrix_comparison.compatible %}<div class="notice">{{ matrix_comparison.reason }}</div>{% else %}<div class="metric-strip three matrix-delta-metrics"><div><span>变化</span><b>{{ matrix_comparison.changed }}</b></div><div><span>改善</span><b>{{ matrix_comparison.improved }}</b></div><div><span>回归</span><b>{{ matrix_comparison.regressed }}</b></div></div><div class="dense-table"><div class="dense-head grid-matrix-compare"><span>身份</span><span>修复前</span><span>修复后</span><span>变化</span></div>{% for row in matrix_comparison.rows %}<div class="dense-row grid-matrix-compare"><span><b>{{ row.name }}</b></span><span>{{ class_zh.get(row.before,row.before) }}{% if row.before_confidence is not none %} · {{ row.before_confidence }}%{% endif %}</span><span>{{ class_zh.get(row.after,row.after) }}{% if row.after_confidence is not none %} · {{ row.after_confidence }}%{% endif %}</span><span class="matrix-delta {{ row.delta }}">{{ {'same':'无变化','improved':'已改善','regressed':'出现回归','changed':'结论变化'}.get(row.delta,row.delta) }}</span></div>{% endfor %}</div>{% endif %}{% endif %}</section>{% endif %}
+
+{% if selected_matrix_payload %}
+<section class="panel auth-matrix-run-detail">
+  <div class="panel-title"><div><h2>矩阵运行 #{{ selected_matrix_payload.id }}</h2><small>Persistent Job 负责执行，刷新页面可查看最终结果。</small></div><span class="run-state {{ selected_matrix_payload.status }}">{{ selected_matrix_payload.status }}</span></div>
+  <pre>{{ selected_matrix_payload.summary|tojson(indent=2) }}</pre>
+</section>
+{% endif %}
+{% endblock %}

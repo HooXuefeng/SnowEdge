@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} · Assets{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb">{{ project.name }} / Assets</span>{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div>
+    <div class="eyebrow">ASSET INVENTORY</div>
+    <h1>资产</h1>
+    <p class="lead">从目标到服务再到 Endpoint 的可追踪资产视图。</p>
+  </div>
+  <div class="head-actions">
+    <span class="scope-status"><span class="dot ok"></span>Scope protected</span>
+  </div>
+</section>
+
+<section class="stats-grid three">
+  <div class="stat-card"><div class="stat-label">Assets</div><div class="stat-value">{{ stats.assets }}</div><div class="stat-foot">Hostnames and IPs</div></div>
+  <div class="stat-card"><div class="stat-label">Services</div><div class="stat-value">{{ stats.services }}</div><div class="stat-foot">Observed TCP services</div></div>
+  <div class="stat-card"><div class="stat-label">Endpoints</div><div class="stat-value">{{ stats.endpoints }}</div><div class="stat-foot">HTTP observations</div></div>
+</section>
+
+{% if asset_rows %}
+<div class="asset-stack">
+  {% for row in asset_rows %}
+  <section class="asset-card">
+    <div class="asset-head">
+      <div class="asset-identity">
+        <div class="asset-icon">{{ 'IP' if row.asset.kind == 'ip' else 'DNS' }}</div>
+        <div>
+          <div class="eyebrow">{{ row.asset.kind|upper }}</div>
+          <h2>{{ row.asset.target }}</h2>
+        </div>
+      </div>
+      <div class="asset-summary">
+        <span>{{ row.services|length }} services</span>
+        <span>{{ row.endpoints|length }} endpoints</span>
+      </div>
+    </div>
+
+    <div class="asset-columns">
+      <div>
+        <h3 class="subheading">Services</h3>
+        {% if row.services %}
+        <div class="service-list">
+          {% for s in row.services %}
+          <div class="service-row">
+            <span class="port-chip">{{ s.port }}/{{ s.protocol }}</span>
+            <div><b>{{ s.name }}</b><small>{{ s.banner or 'No banner captured' }}</small></div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="muted-box">No services recorded.</div>
+        {% endif %}
+      </div>
+
+      <div>
+        <h3 class="subheading">Endpoints</h3>
+        {% if row.endpoints %}
+        <div class="endpoint-list">
+          {% for e in row.endpoints %}
+          <div class="endpoint-row">
+            <span class="method">{{ e.method }}</span>
+            <div><b>{{ e.url|redact_url }}</b><small>HTTP {{ e.status_code or '—' }}</small></div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="muted-box">No endpoints recorded.</div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">⌘</div>
+  <h3>No assets yet</h3>
+  <p>运行一次授权扫描后，主机、服务和 HTTP Endpoint 会自动进入资产库。</p>
+  <a class="button primary" href="/projects/{{ project.id }}">Start scan</a>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} · 报告中心{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 报告中心{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div><div class="mini-label">交付报告</div><h1>报告预览</h1><p>根据当前项目数据模型实时生成报告，并在导出前检查缺失证据。</p></div>
+  <div class="action-row">
+    <a class="btn primary" href="/projects/{{ project.id }}/reports/delivery">选择漏洞与交付快照</a>
+    <a class="btn" href="/projects/{{ project.id }}/reports/export.md">Markdown</a>
+    <a class="btn" href="/projects/{{ project.id }}/reports/export.docx">txb02 Word</a>
+    <a class="btn primary" href="/projects/{{ project.id }}/reports/export.html">HTML</a>
+  </div>
+</div>
+
+<section class="panel report-preflight {{ 'ready' if report_preflight.ready else 'warning' }}">
+  <div class="panel-title">
+    <div><h2>导出前检查 · 报告导出前检查</h2><small>不阻止你导出，但会把“报告还缺什么”明确列出来</small></div>
+    <span class="quality-badge {{ 'grade-a' if report_preflight.ready else 'grade-c' }}">{{ 'READY' if report_preflight.ready else report_preflight.blocking_count ~ ' BLOCKING' }}</span>
+  </div>
+  <div class="preflight-summary">
+    <div><b>{{ report_preflight.quality.average }}</b><span>平均质量</span></div>
+    <div><b>{{ report_preflight.quality.ready }}/{{ report_preflight.quality.count }}</b><span>可交付漏洞</span></div>
+    <div><b>{{ report_preflight.warning_count }}</b><span>警告</span></div>
+    <div><b>{{ report_preflight.info_count }}</b><span>提示</span></div>
+  </div>
+  <div class="preflight-list">
+    {% for item in report_preflight.issues[:20] %}
+    <a class="preflight-item {{ item.level }}" href="{% if item.finding_id %}/findings/{{ item.finding_id }}{% else %}#{% endif %}">
+      <span>{{ item.level|upper }}</span>
+      <div><b>{% if item.finding_id %}Finding #{{ item.finding_id }} · {% endif %}{{ item.title }}</b><small>{{ item.detail }}</small></div>
+    </a>
+    {% else %}<div class="empty small">当前没有发现明显交付缺口。</div>{% endfor %}
+  </div>
+</section>
+
+<div class="report-layout">
+  <section class="report-paper">
+    <div class="report-cover">
+      <div class="mini-label">授权渗透测试</div>
+      <h1>{{ project.name }}</h1>
+      <p>SnowEdge · 根据当前项目状态生成</p>
+    </div>
+
+    <div class="report-section">
+      <h2>执行摘要</h2>
+      <p>The workspace currently contains {{ stats.assets }} asset(s), {{ stats.services }} service(s), {{ stats.routes }} route candidate(s), and {{ stats.findings }} finding(s).</p>
+      {% if agent_run %}<p>Latest agent run: {{ agent_run.status }} / {{ agent_run.stage }} — {{ agent_run.summary or agent_run.mission }}</p>{% endif %}
+    </div>
+
+    <div class="report-section">
+      <h2>请求验证摘要</h2>
+      <p>The workspace currently contains {{ stats.stored_requests|default(0) }} stored request(s), {{ stats.identities|default(0) }} encrypted test identity/identities, and {{ stats.replays|default(0) }} manual read-only replay result(s).</p>
+    </div>
+
+    <div class="report-section">
+      <h2>已启用技能配置</h2>
+      <p>The assessment workflow is controlled by {{ enabled_skills|length }} selected Skill(s).</p>
+      <ul>
+        {% for skill in enabled_skills %}
+        <li><b>{{ skill.name }}</b> — {{ skill.execution_mode }}</li>
+        {% else %}
+        <li>当前未启用技能。</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="report-section">
+      <h2>权限验证摘要</h2>
+      <p>{{ authorization_cases|length }} differential authorization case(s) are recorded in this workspace.</p>
+      {% if authorization_cases %}
+      <table class="report-authz-table">
+        <thead><tr><th>案例</th><th>类型</th><th>结论</th><th>置信度</th></tr></thead>
+        <tbody>
+        {% for c in authorization_cases %}
+        <tr><td>#{{ c.id }}</td><td>{{ c.test_type }}</td><td>{{ c.classification }}</td><td>{{ c.confidence }}%</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    </div>
+
+    <div class="report-section">
+      <h2>安全知识图谱摘要</h2>
+      <p>{{ knowledge_report.nodes }} node(s) and {{ knowledge_report.edges }} deterministic relation(s) are currently materialized.</p>
+      <div class="report-risk-grid"><div><b>{{ stats.critical }}</b><span>严重</span></div>
+        <div><b>{{ knowledge_report.finding_nodes }}</b><span>漏洞节点</span></div>
+        <div><b>{{ knowledge_report.evidence_nodes }}</b><span>证据节点</span></div>
+        <div><b>{{ knowledge_report.node_counts|length }}</b><span>节点类型</span></div>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <h2>测试记忆摘要</h2>
+      <p>{{ memory_report.count }} structured memory record(s) are available to reduce duplicate work.</p>
+      <div class="report-risk-grid"><div><b>{{ stats.critical }}</b><span>严重</span></div>
+        <div><b>{{ memory_report.avoid_repeat }}</b><span>避免重复</span></div>
+        <div><b>{{ memory_report.needs_review }}</b><span>复核 / 复测</span></div>
+        <div><b>{{ memory_report.by_type|length }}</b><span>记忆类型</span></div>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <h2>专家复核</h2>
+      {% if latest_team_parent %}
+      <p>Team run #{{ latest_team_parent.id }}: <b>{{ latest_team_parent.status }}</b> — {{ latest_team_parent.summary }}</p>
+      <div class="report-risk-grid"><div><b>{{ stats.critical }}</b><span>严重</span></div>
+        <div><b>{{ specialist_report.runs|length }}</b><span>专家运行</span></div>
+        <div><b>{{ specialist_report.交接|length }}</b><span>交接</span></div>
+        <div><b>{{ specialist_report.drift_blocked }}</b><span>偏移阻止</span></div>
+      </div>
+      {% else %}
+      <p>暂无 AI 专家团队研判记录。</p>
+      {% endif %}
+    </div>
+
+    <div class="report-section">
+      <h2>覆盖情况摘要</h2>
+      <p>当前确定性覆盖度： <b>{{ coverage_report.score }}/100</b>.</p>
+      <div class="report-risk-grid"><div><b>{{ stats.critical }}</b><span>严重</span></div>
+        <div><b>{{ coverage_report.covered }}</b><span>已覆盖</span></div>
+        <div><b>{{ coverage_report.partial }}</b><span>部分覆盖</span></div>
+        <div><b>{{ coverage_report.gap }}</b><span>缺口</span></div>
+        <div><b>{{ coverage_report.needs_review }}</b><span>待复核</span></div>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <h2>整改摘要</h2>
+      <p>{{ remediation_report.count }} 漏洞 workflow item(s) are tracked.</p>
+      <div class="report-risk-grid"><div><b>{{ stats.critical }}</b><span>严重</span></div>
+        <div><b>{{ remediation_report.open }}</b><span>待处理</span></div>
+        <div><b>{{ remediation_report.remediation }}</b><span>整改中</span></div>
+        <div><b>{{ remediation_report.retest_ready }}</b><span>复测就绪</span></div>
+        <div><b>{{ remediation_report.resolved }}</b><span>已解决</span></div>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <h2>浏览器观察摘要</h2>
+      <p>{{ stats.browser_sessions|default(0) }} Browser Session(s), {{ stats.browser_events|default(0) }} event(s), {{ stats.browser_artifacts|default(0) }} artifact(s).</p>
+      {% if browser_sessions_report %}
+      <table class="report-authz-table">
+        <thead><tr><th>会话</th><th>状态</th><th>目标</th><th>浏览器</th></tr></thead>
+        <tbody>
+        {% for s in browser_sessions_report %}
+        <tr><td>#{{ s.id }}</td><td>{{ s.status }}</td><td>{{ s.target_url }}</td><td>{{ s.browser_name or '—' }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    </div>
+
+    <div class="report-section">
+      <h2>执行过程摘要</h2>
+      {% if latest_plan %}
+      <p>Latest Skill Plan #{{ latest_plan.id }} is <b>{{ latest_plan.status }}</b> with {{ execution_graph.node_count }} graph node(s){% if latest_plan.executed_agent_run_id %}, linked to AgentRun #{{ latest_plan.executed_agent_run_id }}{% endif %}.</p>
+      <div class="report-risk-grid"><div><b>{{ stats.critical }}</b><span>严重</span></div>
+        {% for status, count in execution_graph.status_counts.items() %}
+        <div><b>{{ count }}</b><span>{{ status }}</span></div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p>暂无技能规划或执行图谱记录。</p>
+      {% endif %}
+    </div>
+
+    <div class="report-section">
+      <h2>漏洞验证摘要</h2>
+      <p>{{ proof_capsules|length }} Proof Capsule(s) and {{ stats.retest_runs|default(0) }} retest run(s) are recorded.</p>
+      {% if proof_capsules %}
+      <table class="report-authz-table">
+        <thead><tr><th>漏洞</th><th>验证器</th><th>状态</th><th>复测次数</th></tr></thead>
+        <tbody>
+        {% for c in proof_capsules %}
+        <tr><td>#{{ c.finding_id }}</td><td>{{ c.verifier_type }}</td><td>{{ c.status }}</td><td>{{ c.retest_count }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    </div>
+
+    <div class="report-section">
+      <h2>风险摘要</h2>
+      <div class="report-risk-grid"><div><b>{{ stats.critical }}</b><span>严重</span></div><div><b>{{ stats.high }}</b><span>高危</span></div><div><b>{{ stats.medium }}</b><span>中危</span></div><div><b>{{ stats.low }}</b><span>低危</span></div><div><b>{{ stats.info }}</b><span>提示</span></div></div>
+    </div>
+
+    <div class="report-section">
+      <h2>漏洞发现</h2>
+      {% for f in findings %}
+      <article class="report-finding">
+        <div><span class="severity {{ f.severity }}">{{ f.severity|severity_zh }}</span><b>{{ f.title }}</b>{% set fq=finding_quality_map.get(f.id) %}{% if fq %}<span class="quality-badge grade-{{ fq.grade|lower }}">{{ fq.score }}</span>{% endif %}</div>
+        <code>{{ f.target }}</code>
+        <p><b>验证状态：</b> {{ f.verification_state|status_zh }}</p>
+        <p>{{ f.description }}</p>
+        <h4>修复建议</h4>
+        <p>{{ f.recommendation }}</p>
+      </article>
+      {% else %}<p>暂无漏洞记录。</p>{% endfor %}
+    </div>
+  </section>
+  <aside class="panel report-side">
+    <div class="mini-label">报告状态</div>
+    <div class="key-value">
+      <div><span>漏洞发现</span><b>{{ stats.findings }}</b></div>
+      <div><span>证据支撑</span><b>是</b></div>
+      <div><span>Proof Capsule</span><b>{{ stats.proof_capsules|default(0) }}</b></div>
+      <div><span>复测运行</span><b>{{ stats.retest_runs|default(0) }}</b></div>
+      <div><span>Markdown 导出</span><b>就绪</b></div>
+      <div><span>HTML 导出</span><b>就绪</b></div>
+      <div><span>txb02 Word</span><b>就绪</b></div>
+    </div>
+  </aside>
+</div>
+{% endblock %}

@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}{{ finding.title }} · 漏洞详情{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 漏洞发现 / #{{ finding.id }}{% endblock %}
+{% block content %}
+<div class="finding-header">
+  <a class="btn" href="/projects/{{ project.id }}/workflow/finding/{{ finding.id }}">AI 研判与工具联动</a>
+  <div>
+    <div class="finding-flags">
+      <span class="severity {{ finding.severity }}">{{ {'high':'高危','medium':'中危','low':'低危','info':'信息'}.get(finding.severity,finding.severity) }}</span>
+      <span class="source-tag">{{ finding.source }}</span>
+      {% if proof_capsule %}<span class="proof-state {{ proof_capsule.status }}">{{ proof_capsule.status }}</span>{% endif %}
+      <span>#{{ finding.id }}</span>
+    </div>
+    <h1>{{ finding.title }}</h1>
+    <code>{{ finding.target }}</code>
+  </div>
+  <div class="action-row">
+    <a class="btn primary" href="/findings/{{ finding.id }}/edit">编辑漏洞</a>
+    <a class="btn" href="/projects/{{ project.id }}/reports">生成报告</a>
+    <a class="btn" href="/projects/{{ project.id }}/remediation?selected={{ finding_lifecycle.id }}">整改与复测</a>
+    <a class="btn" href="/projects/{{ project.id }}/findings">返回列表</a>
+  </div>
+</div>
+
+{% include 'finding_manual.html' %}
+<section class="finding-taxonomy-strip">
+  <div><span>漏洞类型</span><b>{{ finding.vuln_type or '待分类' }}</b></div>
+  <div><span>CWE</span><b>{{ finding.cwe_id or '—' }}</b></div>
+  <div><span>OWASP</span><b>{{ finding.owasp_category or '—' }}</b></div>
+  <div><span>txb02</span><b>{{ finding.txb02_category or '待映射' }}</b></div>
+  <div><span>参数</span><b>{{ finding.parameter or '—' }}</b></div>
+  <div><span>去重状态</span><b>{{ finding.dedupe_status }}</b></div>
+</section>
+
+<section class="panel finding-quality-panel">
+  <div class="panel-title">
+    <div><h2>Finding Quality Gate</h2><small>证据是否足以支撑确认、复测和正式交付</small></div>
+    <span class="quality-badge grade-{{ finding_quality.grade|lower }}">{{ finding_quality.score }}/100 · {{ finding_quality.grade }}</span>
+  </div>
+  <div class="quality-check-grid">
+    {% for c in finding_quality.checks %}
+    <div class="quality-check {{ 'ok' if c.ok else 'missing' }}">
+      <span>{{ '✓' if c.ok else '!' }}</span>
+      <div><b>{{ c.label }}</b><small>{{ c.detail }}</small></div>
+      <em>{{ c.points }}/{{ c.max_points }}</em>
+    </div>
+    {% endfor %}
+  </div>
+  {% if finding_quality.penalty %}
+  <div class="notice">AI-only penalty：-{{ finding_quality.penalty }}。AI 结论本身不能替代确定性 Evidence 或人工确认。</div>
+  {% endif %}
+</section>
+
+<section class="panel finding-state-panel">
+  <div class="panel-title"><div><h2>漏洞三状态体系</h2><small>漏洞确认状态、整改状态、验证状态相互独立</small></div></div>
+  <form method="post" action="/findings/{{ finding.id }}/states" class="finding-state-form">
+    <div><label>漏洞状态</label><select name="finding_state" class="select-control">{% for s in finding_states %}<option value="{{ s }}" {% if finding.finding_state==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+    <div><label>整改状态</label><select name="remediation_state" class="select-control">{% for s in remediation_states %}<option value="{{ s }}" {% if finding_lifecycle.status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+    <div><label>验证状态</label><select name="verification_state" class="select-control">{% for s in verification_states %}<option value="{{ s }}" {% if finding.verification_state==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+    <div class="finding-state-action"><button class="btn primary" type="submit">保存状态</button></div>
+  </form>
+</section>
+
+<div class="finding-layout">
+  <div class="finding-body">
+    <section class="panel prose"><div class="mini-label">漏洞描述</div><p>{{ finding.description }}</p></section>
+    <section class="panel prose"><div class="mini-label">修复建议</div><p>{{ finding.recommendation }}</p></section>
+
+    <section class="panel flush" id="screenshots"><div class="panel-title"><div><h2>验证截图</h2><small>{{ attachments|length }} 张截图 · 自动关联 Evidence SHA256，并进入 Word 报告</small></div></div><form method="post" action="/findings/{{ finding.id }}/screenshots" enctype="multipart/form-data" class="screenshot-upload-form"><input name="label" placeholder="截图说明，例如：图 3-2 切换普通用户后仍可访问" required><input type="file" name="screenshot" accept="image/png,image/jpeg,image/webp" required><button class="btn primary" type="submit">上传截图</button></form><div class="screenshot-evidence-grid">{% for a in attachments %}<figure class="screenshot-evidence-card"><a href="/attachments/{{ a.id }}" target="_blank"><img src="/attachments/{{ a.id }}" alt="{{ a.label }}"></a><figcaption><b>{{ a.label }}</b><small>SHA256 {{ a.file_sha256[:16] }}… · {{ (a.size_bytes/1024)|round(1) }} KB · {{ '已标注' if a.annotation_json and a.annotation_json != '[]' else '原图' }}</small><a class="row-action" href="/attachments/{{ a.id }}/annotate">标注 / 图注 / 排序</a></figcaption></figure>{% else %}<div class="empty small">暂无截图。上传后会自动进入该 Finding 的证据链和 Word 报告。</div>{% endfor %}</div></section>
+
+<section class="panel flush" id="proof-capsule">
+      <div class="panel-title">
+        <div><h2>验证胶囊 / Proof Capsule</h2><small>确定性验证契约与复测历史</small></div>
+        {% if proof_capsule %}<span class="proof-state {{ proof_capsule.status }}">{{ proof_capsule.status }}</span>{% endif %}
+      </div>
+
+      {% if not proof_capsule %}
+      <div class="proof-empty">
+        <div><b>尚未创建验证胶囊。</b><p>系统只会在存在确定性只读验证器时进行自动复测；不支持的漏洞会明确保持“待人工复核”。</p></div>
+        <form method="post" action="/findings/{{ finding.id }}/proof-capsule"><button class="btn primary" type="submit">创建验证胶囊</button></form>
+      </div>
+      {% else %}
+      <div class="proof-contract">
+        <div class="proof-contract-main">
+          <div class="mini-label">验证契约</div>
+          <div class="proof-title-row"><b>{{ proof_capsule.verifier_type }}</b><span class="proof-state {{ proof_capsule.status }}">{{ proof_capsule.status }}</span></div>
+          <div class="proof-json-grid">
+            <div><span>预期信号</span><pre>{{ proof_payload.expected|tojson(indent=2) }}</pre></div>
+            <div><span>最近观察信号</span><pre>{{ proof_payload.observed|tojson(indent=2) }}</pre></div>
+          </div>
+        </div>
+        <aside class="proof-contract-side">
+          <div class="key-value">
+            <div><span>Capsule</span><b>#{{ proof_capsule.id }}</b></div>
+            <div><span>验证器</span><b>{{ proof_capsule.verifier_type }}</b></div>
+            <div><span>复测次数</span><b>{{ proof_capsule.retest_count }}</b></div>
+            <div><span>源证据</span><b>{{ proof_payload.source_evidence_ids|length }}</b></div>
+            <div><span>最后复测</span><b>{{ proof_capsule.last_retest_at.strftime('%Y-%m-%d %H:%M') if proof_capsule.last_retest_at else '—' }}</b></div>
+          </div>
+          <form method="post" action="/findings/{{ finding.id }}/proof-capsule/retest">
+            <button class="btn primary full" type="submit">{% if proof_capsule.verifier_type == 'evidence_snapshot' %}记录人工验证状态{% else %}加入复测队列{% endif %}</button>
+          </form>
+          <div class="context-help">
+            {% if proof_capsule.verifier_type == 'evidence_snapshot' %}
+            当前没有自动验证器，只记录“仍需人工复核”，不会让 AI 伪造复现或修复结论。
+            {% else %}
+            复测进入 Persistent Job Engine，并在网络访问前重新校验当前项目 Scope。
+            {% endif %}
+          </div>
+        </aside>
+      </div>
+
+      <div class="proof-history">
+        <div class="dense-head grid-retest"><span>ID</span><span>状态</span><span>验证器</span><span>详情</span><span>证据</span><span>时间</span></div>
+        {% for run in retest_runs %}
+        <div class="dense-row grid-retest"><span>#{{ run.id }}</span><span><span class="proof-state {{ run.status }}">{{ run.status }}</span></span><span class="mono">{{ run.verifier_type }}</span><span class="truncate">{{ run.detail }}</span><span>{% if run.evidence_id %}#{{ run.evidence_id }}{% else %}—{% endif %}</span><span>{{ run.created_at.strftime('%m-%d %H:%M') if run.created_at else '—' }}</span></div>
+        {% else %}<div class="empty small">暂无复测历史。</div>{% endfor %}
+      </div>
+      {% endif %}
+    </section>
+
+    <section class="panel flush">
+      <div class="panel-title"><div><h2>证据链</h2><small>{{ evidence|length }} 条关联证据</small></div></div>
+      {% for e in evidence %}
+      <details class="evidence-detail" {% if loop.first %}open{% endif %}><summary><span>{{ e.kind }}</span><small>#{{ e.id }} · SHA256 {{ evidence_chains.get(e.id,{}).get('content_sha256','')[:12] }}…</small></summary><div class="evidence-integrity-line"><span>Content</span><code>{{ evidence_chains.get(e.id,{}).get('content_sha256','—') }}</code><span>Integrity</span><code>{{ evidence_chains.get(e.id,{}).get('integrity_sha256','—') }}</code></div><pre>{{ e.content }}</pre></details>
+      {% else %}<div class="empty small">暂无关联证据。</div>{% endfor %}
+    </section>
+  </div>
+
+  <aside class="panel sticky-card">
+    <div class="mini-label">漏洞档案</div>
+    <div class="key-value">
+      <div><span>风险等级</span><b>{{ finding.severity|upper }}</b></div>
+      <div><span>来源</span><b>{{ finding.source }}</b></div>
+      <div><span>Evidence</span><b>{{ evidence|length }}</b></div>
+      <div><span>整改状态</span><b>{{ finding_lifecycle.status|upper }}</b></div>
+      <div><span>负责人</span><b>{{ finding_lifecycle.owner or '未分配' }}</b></div>
+      <div><span>Proof Capsule</span><b>{% if proof_capsule %}#{{ proof_capsule.id }}{% else %}—{% endif %}</b></div>
+      <div><span>漏洞状态</span><b>{{ finding.finding_state|upper }}</b></div>
+      <div><span>验证状态</span><b>{{ finding.verification_state|upper }}</b></div>
+      <div><span>Reopened</span><b>{{ finding.reopened_count }}</b></div>
+      <div><span>Fingerprint</span><b class="mono">{{ finding.fingerprint[:16] if finding.fingerprint else '—' }}</b></div>
+      <div><span>创建时间</span><b>{{ finding.created_at.strftime('%Y-%m-%d %H:%M') if finding.created_at else '—' }}</b></div>
+    </div>
+  </aside>
+</div>
+{% endblock %}

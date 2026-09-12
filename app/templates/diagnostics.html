@@ -1,0 +1,3 @@
+{% extends "base.html" %}{% block title %}系统诊断 · SnowEdge{% endblock %}{% block breadcrumb %}个人工具 / 系统诊断{% endblock %}{% block content %}
+<div class="page-title-row compact"><div><div class="mini-label">本地运行诊断</div><h1>系统诊断</h1><p>检查个人工作站实际运行条件，不进行目标网络访问。</p></div><span class="scope-badge">{{ diagnostics.ok }}/{{ diagnostics.total }} 正常 · {{ diagnostics.warning }} 项提醒</span></div>
+<div class="diagnostic-grid">{% for item in diagnostics.checks %}<section class="panel diagnostic-card {{ 'ok' if item.ok else 'warn' }}"><div class="diagnostic-head"><span class="status-dot {{ 'ok' if item.ok else 'warn' }}"></span><b>{{ item.name }}</b></div><p>{{ item.detail }}</p></section>{% endfor %}</div><div class="notice">诊断不会测试目标站点，也不会主动调用外部 AI。AI 提供商 此处只验证配置是否完整。</div>{% endblock %}

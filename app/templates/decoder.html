@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}自动解码 · 雪锋 SnowEdge{% endblock %}
+{% block breadcrumb %}自动解码{% endblock %}
+{% block content %}
+<div class="page-title-row"><div><h1>自动解码</h1><p>粘贴内容，一键识别常见文本编码。内容只在本机处理，不保存、不发送给 AI。</p></div></div>
+<section class="panel scan-panel"><form id="decodeForm"><label for="decodeValue">待解码内容</label><textarea id="decodeValue" rows="7" maxlength="32000" required placeholder="Base64、URL 编码、HTML 实体、Unicode、Hex 或 JWT"></textarea><div class="action-row"><label><input id="decodeLayers" type="checkbox"> 连续解码（最多 5 层）</label><button class="btn primary">自动识别并解码</button></div></form></section>
+<section class="panel scan-panel"><div class="panel-title"><h2>解码结果</h2><button class="btn" id="decodeCopy" type="button" hidden>复制结果</button></div><p id="decodeStatus" role="status">等待输入</p><div id="decodeChoices" class="action-row"></div><pre id="decodeResult"></pre><small id="decodeChain"></small></section>
+<script src="/static/scan-center.js" defer></script><link rel="stylesheet" href="/static/scan-center.css">
+{% endblock %}

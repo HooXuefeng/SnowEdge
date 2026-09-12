@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} · 工具运行{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 工具运行{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div><div class="mini-label">DETERMINISTIC EXECUTION</div><h1>工具运行</h1><p>每个动作都会记录目标、策略等级、状态与结果摘要。</p></div>
+</div>
+
+<div class="metric-strip four">
+  <div><span>ACTIVE</span><b data-stat="running_tasks">{{ stats.running_tasks }}</b></div>
+  <div><span>DONE</span><b>{{ stats.completed_tasks }}</b></div>
+  <div><span>FAILED</span><b>{{ stats.failed_tasks }}</b></div>
+  <div><span>TOTAL AGENT RUNS</span><b>{{ stats.agent_runs }}</b></div>
+</div>
+
+<section class="panel flush">
+  <div class="dense-table" id="taskTable">
+    <div class="dense-head grid-task"><span>状态</span><span>Action</span><span>目标</span><span>Policy</span><span>Detail</span><span>Time</span></div>
+    {% for t in tasks %}
+    <div class="dense-row grid-task filter-row">
+      <span><span class="run-state {{ t.status }}">{{ t.status }}</span></span>
+      <span><b>{{ t.action }}</b></span>
+      <span class="mono truncate">{{ t.target }}</span>
+      <span class="policy-tag">{{ t.policy_class }}</span>
+      <span class="truncate">{{ t.detail or '—' }}</span>
+      <span>{{ t.created_at.strftime('%H:%M:%S') if t.created_at else '—' }}</span>
+    </div>
+    {% else %}<div class="empty">暂无工具运行。</div>{% endfor %}
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>window.PROJECT_ID={{ project.id }};window.ENABLE_TASK_PAGE_POLLING=true;</script>
+{% endblock %}

@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}AI 技能规划 · {{ project.name }}{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 技能中心 / AI 技能规划{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div>
+    <div class="mini-label">EVIDENCE-AWARE ORCHESTRATION</div>
+    <h1>AI 技能规划</h1>
+    <p>根据当前项目证据生成受限 Skill 规划，人工复核并明确批准后才能执行。</p>
+  </div>
+  <div class="action-row">
+    <a class="btn" href="/projects/{{ project.id }}/skills">← 技能中心</a>
+    {% if selected_plan %}<a class="btn" href="/projects/{{ project.id }}/execution-graph?plan={{ selected_plan.id }}">View 执行图谱</a>{% endif %}
+  </div>
+</div>
+
+<div class="skill-safety-banner">
+  <div><span class="status-dot ok"></span><b>Catalog-constrained AI</b><small>The model can only recommend existing built-in Skill slugs.</small></div>
+  <div><span class="status-dot ok"></span><b>Human approval required</b><small>A draft cannot invoke network tools until the selected Skill set is approved.</small></div>
+  <div><span class="status-dot ok"></span><b>Execution remains deterministic</b><small>Scope Engine and Policy Engine are rechecked at execution time.</small></div>
+</div>
+
+<div class="planner-layout">
+  <section class="planner-main">
+    <section class="panel planner-generator">
+      <div class="panel-title"><div><h2>生成 Skill 规划</h2><small>目标 is optional for planning, but required for automatic execution.</small></div></div>
+      <form method="post" action="/projects/{{ project.id }}/skills/planner/generate" class="planner-generate-form">
+        <label>授权目标</label>
+        <div class="launch-line">
+          <span class="prompt">target://</span>
+          <input name="target" placeholder="https://app.example.test or 192.0.2.10">
+          <button class="btn primary" type="submit">生成规划</button>
+        </div>
+        <div class="context-help">Only the redacted evidence profile, target characteristics, deterministic shortlist, and built-in Skill catalog are given to the AI planner.</div>
+      </form>
+    </section>
+
+    {% if selected_plan %}
+    <section class="panel flush planner-plan">
+      <div class="panel-title">
+        <div>
+          <h2>Plan #{{ selected_plan.id }}</h2>
+          <small>{{ selected_plan.target or 'No target bound yet' }}</small>
+        </div>
+        <span class="plan-state {{ selected_plan.status }}">{{ selected_plan.status }}</span>
+      </div>
+
+      <div class="planner-profile">
+        {% for key, value in plan_payload.profile.items() %}
+        {% if value is number and value is not boolean %}
+        <div><span>{{ key|replace('_',' ') }}</span><b>{{ value }}</b></div>
+        {% endif %}
+        {% endfor %}
+      </div>
+
+      <div class="planner-ai">
+        <div class="mini-label">AI PLANNER SUMMARY</div>
+        <p>{{ selected_plan.ai_summary or 'No additional AI summary. Deterministic evidence-based shortlist is still available.' }}</p>
+      </div>
+
+      <form method="post" action="/projects/{{ project.id }}/skills/planner/{{ selected_plan.id }}/approve" class="planner-approval-form">
+        <div class="planner-recommend-head">
+          <div><h3>Recommended Skill sequence</h3><small>Uncheck anything you do not want enabled. Approval applies the exact built-in selection shown here.</small></div>
+          <span>{{ plan_payload.recommendations|length }} recommendation(s)</span>
+        </div>
+
+        <div class="planner-skill-list">
+          {% for rec in plan_payload.recommendations %}
+          {% set skill = planner_skill_map.get(rec.slug) %}
+          {% if skill %}
+          <label class="planner-skill-row">
+            <input type="checkbox" name="selected_slugs" value="{{ rec.slug }}"
+              {% if selected_plan.status == 'draft' or rec.slug in plan_payload.approved_skills %}checked{% endif %}>
+            <div class="planner-skill-order">{{ loop.index }}</div>
+            <div class="planner-skill-copy">
+              <div>
+                <b>{{ skill.name }}</b>
+                <span class="skill-category">{{ skill.category }}</span>
+                <span class="skill-mode {{ skill.execution_mode|lower }}">{{ skill.execution_mode }}</span>
+                <span class="plan-priority {{ rec.priority }}">{{ rec.priority }}</span>
+              </div>
+              <p>{{ rec.reason }}</p>
+              {% if rec.ai_reason %}<small>AI: {{ rec.ai_reason }}</small>{% endif %}
+              {% if rec.memory_note %}<small class="planner-memory-note">Memory: {{ rec.memory_note }}</small>{% endif %}
+            </div>
+            <div class="planner-source">{{ rec.source }}</div>
+          </label>
+          {% endif %}
+          {% else %}
+          <div class="empty">No Skill recommendations were produced.</div>
+          {% endfor %}
+        </div>
+
+        <div class="planner-actions">
+          <div class="context-help">
+            <b>MANUAL_WORKSPACE</b> Skills such as 请求 Diff and 越权验证 are enabled by the plan but are never silently executed without their required user-provided context.
+          </div>
+          <button class="btn primary" type="submit">批准所选 Skills</button>
+        </div>
+      </form>
+
+      {% if selected_plan.status in ['approved','executed','error'] %}
+      <div class="planner-execute">
+        <div>
+          <div class="mini-label">APPROVED EXECUTION</div>
+          <b>{{ plan_payload.approved_skills|length }} Skill(s) approved</b>
+          <small>{{ selected_plan.target or 'No target bound to this plan' }}</small>
+        </div>
+        <form method="post" action="/projects/{{ project.id }}/skills/planner/{{ selected_plan.id }}/execute">
+          <button class="btn primary" type="submit" {% if not selected_plan.target %}disabled{% endif %}>执行已批准规划</button>
+        </form>
+      </div>
+      {% endif %}
+    </section>
+    {% else %}
+    <section class="panel hero-empty">
+      <div class="empty">
+        <b>No Skill Plan yet.</b><br>
+        Generate one from the current workspace evidence. The Mock provider works without an API key; an OpenAI-compatible provider adds a bounded second opinion.
+      </div>
+    </section>
+    {% endif %}
+  </section>
+
+  <aside class="planner-side">
+    <section class="panel">
+      <div class="mini-label">PLAN LIFECYCLE</div>
+      <div class="planner-lifecycle">
+        <div><span>1</span><b>Generate</b><small>证据 profile + allowlisted catalog</small></div>
+        <div><span>2</span><b>Review</b><small>Human edits exact selection</small></div>
+        <div><span>3</span><b>Approve</b><small>Project Skill state is updated</small></div>
+        <div><span>4</span><b>Execute</b><small>Scope/Policy revalidated</small></div>
+      </div>
+    </section>
+
+    <section class="panel flush">
+      <div class="panel-title"><div><h2>规划历史</h2><small>{{ plans|length }} recent plan(s)</small></div></div>
+      <div class="planner-history">
+        {% for p in plans %}
+        <a href="/projects/{{ project.id }}/skills/planner?plan={{ p.id }}" class="{% if selected_plan and selected_plan.id == p.id %}active{% endif %}">
+          <span>#{{ p.id }}</span>
+          <div><b>{{ p.target or '证据-only plan' }}</b><small>{{ p.status }}</small></div>
+        </a>
+        {% else %}<div class="empty small">No plans.</div>{% endfor %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="mini-label">BOUNDARIES</div>
+      <div class="key-value">
+        <div><span>AI can invent Skill slug</span><b>NO</b></div>
+        <div><span>AI can grant capability</span><b>NO</b></div>
+        <div><span>Draft can execute</span><b>NO</b></div>
+        <div><span>Out-of-scope target</span><b>BLOCKED</b></div>
+      </div>
+    </section>
+  </aside>
+</div>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}研判与工具联动 · SnowEdge{% endblock %}
+{% block content %}
+<div class="page-title-row"><div><h1>研判与工具联动</h1><p>{{ source.label }} · {{ source.ref }}</p></div><a class="btn" href="/projects/{{ project.id }}/reports/delivery">报告交付</a></div>
+<section class="panel scan-panel"><h2>下一步操作</h2><p>目标与证据自动带入；网络操作继续使用原工具的授权范围、代理和任务控制。</p><div class="action-row">
+<form method="post" action="/projects/{{ project.id }}/workflow/{{ source.kind }}/{{ source.id }}/analyze"><button class="btn primary">AI 分析当前内容</button></form>
+{% if source.kind=='request' %}<a class="btn" href="/projects/{{ project.id }}/requests?selected={{ source.id }}">编辑与重放请求</a>{% endif %}
+<a class="btn" href="/projects/{{ project.id }}/authorization-matrix">权限对比</a>
+{% if source.target %}<form method="post" action="/projects/{{ project.id }}/workflow/{{ source.kind }}/{{ source.id }}/scan"><button class="btn">目标带入扫描中心</button></form>{% endif %}
+<a class="btn" href="/projects/{{ project.id }}/findings/new?source_kind={{ source.kind }}&source_id={{ source.id }}">记录漏洞草稿</a>
+{% if source.kind=='finding' %}<a class="btn" href="/findings/{{ source.id }}/edit">编辑当前漏洞</a>{% endif %}</div></section>
+{% if analysis %}<section class="panel scan-panel"><h2>AI 研判 · {{ analysis.status|status_zh }}</h2>{% if analysis.provider=='mock' %}<p class="notice">当前使用本地演示模式，此结果不是实际模型研判。</p>{% endif %}
+{% if analysis.status=='done' %}<pre style="white-space:pre-wrap">{{ answer.get('answer','') }}</pre><h3>待补充证据</h3><ul>{% for gap in answer.get('gaps',[]) %}<li>{{ gap }}</li>{% endfor %}</ul><p>引用：{{ answer.get('citations',[])|join('、') }}</p><a class="btn" href="/projects/{{ project.id }}/findings/new?source_kind={{ source.kind }}&source_id={{ source.id }}&query_id={{ analysis.id }}">将研判带入漏洞草稿，人工核对后保存</a>
+{% elif analysis.status=='error' %}<p>研判失败，请检查 AI 配置或到任务中心重试。</p>{% else %}<p>已进入任务队列。完成后刷新此页查看。</p><a class="btn" href="">刷新结果</a>{% endif %}<a class="btn" href="/projects/{{ project.id }}/copilot?selected={{ analysis.id }}">完整研判记录</a></section>{% endif %}
+<details class="panel scan-panel"><summary>本次来源内容（脱敏）</summary><pre style="white-space:pre-wrap">{{ source_json }}</pre></details>
+<details class="panel scan-panel"><summary>外部工具接入</summary><p>Burp：支持原始请求导入及已有扩展接入。Nmap：XML 结果导入。Nuclei：JSONL 结果导入及内置 HTTP 模板子集。外部 Nmap / Nuclei 完整命令执行暂不由此页自动编排。</p><a class="btn" href="/projects/{{ project.id }}/imports">导入工具结果</a></details>
+<link rel="stylesheet" href="/static/scan-center.css">
+{% endblock %}

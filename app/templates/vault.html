@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Secret Vault · SnowEdge{% endblock %}
+{% block breadcrumb %}个人工具 / Secret Vault{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div><div class="mini-label">PERSONAL SECRET VAULT</div><h1>Secret Vault</h1><p>集中保存个人测试身份、Token、API Key 等敏感材料。浏览器默认只展示字段名和掩码；HTTP Identity 可直接绑定到 Request Replay / Browser。</p></div>
+  <button class="btn primary" data-open-modal="vaultCreateModal">新建 Secret</button>
+</div>
+<div class="notice">Vault 使用 APP_SECRET_KEY 派生的 Fernet 密钥加密。Logical Purge 会清空当前可解密值，但 SQLite 历史页不等于物理安全擦除；对极高敏感数据请结合磁盘加密与安全删除策略。</div>
+<section class="vault-grid">
+{% for row in vault_rows %}
+  <article class="panel vault-card {{ 'disabled' if row.item.disabled else '' }}">
+    <div class="vault-head"><div><span class="vault-type">{{ row.item.secret_type }}</span><h2>{{ row.item.label }}</h2><small>{% if row.item.project_id %}Project #{{ row.item.project_id }}{% else %}Global{% endif %}{% if row.item.username %} · {{ row.item.username }}{% endif %}</small></div><span class="run-state {{ 'done' if row.usable else 'error' }}">{{ 'usable' if row.usable else ('expired' if row.expired else 'disabled') }}</span></div>
+    <div class="vault-fields">{% for f in row.fields %}<code>{{ f }}</code>{% else %}<span class="muted">encrypted payload</span>{% endfor %}</div>
+    {% if row.item.notes %}<p>{{ row.item.notes }}</p>{% endif %}
+    <div class="vault-meta"><span>Last used {{ row.item.last_used_at.strftime('%m-%d %H:%M') if row.item.last_used_at else 'never' }}</span><span>Expires {{ row.item.expires_at.strftime('%Y-%m-%d %H:%M') if row.item.expires_at else 'never' }}</span></div>
+    <div class="action-row">
+      <button class="btn" data-open-modal="rotateVault{{ row.item.id }}">轮换</button>
+      <form method="post" action="/vault/{{ row.item.id }}/toggle"><button class="btn" type="submit">{{ '启用' if row.item.disabled else '禁用' }}</button></form>
+      <form method="post" action="/vault/{{ row.item.id }}/purge" onsubmit="return confirm('确认逻辑清空这个 Secret？该操作不可恢复。')"><button class="btn danger" type="submit">清空</button></form>
+    </div>
+  </article>
+  <div class="modal" id="rotateVault{{ row.item.id }}"><div class="modal-shade" data-close-modal></div><div class="modal-body"><div class="modal-head"><h2>轮换 · {{ row.item.label }}</h2><button data-close-modal>×</button></div><form method="post" action="/vault/{{ row.item.id }}/rotate">
+  {% if row.item.secret_type=='http_identity' %}<label>Headers JSON</label><textarea name="headers_json" rows="7">{}</textarea><label>Cookies</label><textarea name="cookies" rows="5"></textarea>{% else %}<label>新 Secret 值</label><textarea name="secret_value" rows="5" required></textarea>{% endif %}
+  <div class="modal-actions"><button type="button" class="btn" data-close-modal>取消</button><button class="btn primary">保存新版本</button></div></form></div></div>
+{% else %}<div class="empty hero-empty">Vault 为空。建议把常用测试身份放入 HTTP Identity，再在“身份与会话”中引用。</div>{% endfor %}
+</section>
+<div class="modal" id="vaultCreateModal"><div class="modal-shade" data-close-modal></div><div class="modal-body wide-modal"><div class="modal-head"><h2>新建 Secret</h2><button data-close-modal>×</button></div><form method="post" action="/vault">
+<div class="form-grid two"><div><label>Label</label><input name="label" required placeholder="Low-priv User A"></div><div><label>类型</label><select name="secret_type" class="select-control" id="vaultSecretType"><option value="http_identity">HTTP Identity</option><option value="bearer_token">Bearer Token</option><option value="api_key">API Key</option><option value="cookie_jar">Cookie Jar</option><option value="login_credential">Login Credential</option><option value="custom">Custom</option></select></div><div><label>项目</label><select name="project_id" class="select-control"><option value="">Global</option>{% for p in projects %}<option value="{{ p.id }}" {% if selected_project_id==p.id %}selected{% endif %}>#{{ p.id }} · {{ p.name }}</option>{% endfor %}</select></div><div><label>Username / Hint</label><input name="username"></div></div>
+<div id="vaultHttpFields"><label>Headers JSON</label><textarea name="headers_json" rows="7" placeholder='{"Authorization":"Bearer ..."}'>{}</textarea><label>Cookies</label><textarea name="cookies" rows="5" placeholder="sid=...; tenant=..."></textarea></div>
+<div id="vaultGenericField" hidden><label>Secret Value</label><textarea name="secret_value" rows="5"></textarea></div>
+<div class="form-grid two"><div><label>Expires At（可选）</label><input type="datetime-local" name="expires_at"></div><div><label>Notes</label><input name="notes"></div></div>
+<div class="modal-actions"><button type="button" class="btn" data-close-modal>取消</button><button class="btn primary">加密保存</button></div></form></div></div>
+{% endblock %}
+{% block scripts %}<script>(()=>{const s=document.getElementById('vaultSecretType'),h=document.getElementById('vaultHttpFields'),g=document.getElementById('vaultGenericField');if(s){const sync=()=>{const http=s.value==='http_identity';h.hidden=!http;g.hidden=http};s.addEventListener('change',sync);sync();}})();</script>{% endblock %}

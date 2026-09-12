@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} · 会话{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 会话 & Identities{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div><div class="mini-label">身份与会话</div><h1>身份与会话</h1><p>用于响应差异比较的加密测试身份；敏感值不会在保存后重新显示在浏览器中。</p></div>
+  <div class="action-row"><a class="btn" href="/vault?project_id={{ project.id }}">凭据保险库</a><button class="btn primary" data-open-modal="identityModal">新建身份</button></div>
+</div>
+
+<div class="identity-grid">
+  {% for row in identity_rows %}
+  <section class="panel identity-card filter-row">
+    <div class="identity-head"><div><span class="identity-avatar">{{ row.identity.name[:2]|upper }}</span><h2>{{ row.identity.name }}</h2></div><span class="role-tag">{{ row.identity.role }}</span></div>
+    {% if row.identity.notes %}<p>{{ row.identity.notes }}</p>{% endif %}
+    {% if row.vault %}<div class="vault-linked"><span>保险库</span><b>{{ row.vault.item.label }}</b><small>{{ row.vault.fields|join(' · ') }}</small></div>{% else %}
+    <div class="secret-section"><div class="mini-label">受保护请求头</div>{% for h in row.headers %}<div class="masked-secret"><span>{{ h.name }}</span><code>{{ h.value }}</code></div>{% else %}<div class="muted-line">无</div>{% endfor %}</div>
+    <div class="secret-section"><div class="mini-label">Cookie</div>{% for c in row.cookies %}<div class="masked-secret"><span>{{ c.name }}</span><code>{{ c.value }}</code></div>{% else %}<div class="muted-line">无</div>{% endfor %}</div>{% endif %}
+  </section>
+  {% else %}<div class="empty hero-empty">暂无测试身份。仍可使用匿名身份进行只读重放。</div>{% endfor %}
+</div>
+
+<div class="modal" id="identityModal">
+  <div class="modal-shade" data-close-modal></div>
+  <div class="modal-body">
+    <div class="modal-head"><h2>创建加密身份</h2><button data-close-modal>×</button></div>
+    <form method="post" action="/projects/{{ project.id }}/sessions">
+      <div class="form-grid two"><div><label>名称</label><input name="name" required placeholder="用户 A"></div><div><label>角色</label><input name="role" value="User"></div></div>
+      <label>凭据保险库 HTTP 身份（可选）</label><select name="vault_item_id" class="select-control"><option value="">不引用保险库，使用下方输入</option>{% for v in vault_items %}<option value="{{ v.item.id }}">#{{ v.item.id }} · {{ v.item.label }}{% if v.item.project_id is none %} · 全局{% endif %}</option>{% endfor %}</select>
+      <div class="context-help">选择保险库后，下方请求头/Cookie 不会写入身份记录；重放和浏览器观察会在运行时从保险库解密。</div>
+      <label>请求头 JSON</label><textarea name="headers_json" rows="6" placeholder='{"Authorization":"Bearer ...","X-Test-User":"1001"}'>{}</textarea>
+      <label>Cookie</label><textarea name="cookies" rows="4" placeholder="session=abc123; tenant=demo"></textarea>
+      <label>备注</label><textarea name="notes" rows="3" placeholder="已授权低权限测试身份"></textarea>
+      <div class="notice">请求头和 Cookie 会使用 APP_SECRET_KEY 派生密钥进行静态加密；界面只展示字段名和掩码值。</div>
+      <div class="modal-actions"><button type="button" class="btn" data-close-modal>取消</button><button class="btn primary">保存身份</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}

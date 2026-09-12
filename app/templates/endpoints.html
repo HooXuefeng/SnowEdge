@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}接口资产 · {{ project.name }}{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 接口资产{% endblock %}
+{% block content %}
+{% include "pagination.html" %}
+<div class="page-title-row compact">
+  <div><div class="mini-label">接口与参数清单</div><h1>接口资产与参数模型</h1><p>汇总已观察 URL、静态路由和参数结构；敏感参数只保留名称和类型，不保存明文示例。</p></div>
+  <a class="btn" href="/projects/{{ project.id }}/requests">打开请求工作台</a>
+</div>
+
+<section class="metric-strip four">
+  <div><span>已观察接口</span><b>{{ stats.endpoints }}</b></div>
+  <div><span>路由候选</span><b>{{ stats.routes }}</b></div>
+  <div><span>参数记录</span><b>{{ stats.endpoint_parameters|default(0) }}</b></div>
+  <div><span>本页已观察鉴权接口</span><b>{{ endpoints|selectattr('auth_observed','equalto',1)|list|length }}</b></div>
+</section>
+
+<section class="panel flush endpoint-grid-v162">
+  <div class="panel-title"><div><h2>统一接口数据表</h2><small>支持筛选、排序、多选、CSV 导出和保存视图；详细参数仍在下方卡片中；路由候选最多展示最近 100 条</small></div></div>
+  <div class="datagrid-toolbar" data-grid-toolbar="endpointGrid">
+    <div class="grid-quick-filters" aria-label="本页快捷筛选">
+      <button class="grid-filter-chip active" type="button" data-grid-quick data-filter-key="" data-filter-value="">全部</button>
+      <button class="grid-filter-chip" type="button" data-grid-quick data-filter-key="method" data-filter-value="GET">GET</button>
+      <button class="grid-filter-chip" type="button" data-grid-quick data-filter-key="method" data-filter-value="POST">POST</button>
+      <button class="grid-filter-chip" type="button" data-grid-quick data-filter-key="auth" data-filter-value="1">已观察鉴权</button>
+      <button class="grid-filter-chip" type="button" data-grid-quick data-filter-key="source" data-filter-value="javascript">JS 来源</button>
+    </div>
+    <input class="grid-search" data-grid-search placeholder="筛选 URL、方法、资产、指纹、来源…">
+    <button class="btn" type="button" data-grid-columns>列设置</button>
+    <button class="btn" type="button" data-grid-export>导出本页 CSV</button>
+    <button class="btn" type="button" data-grid-save-view>保存视图</button>
+    <span class="grid-count"></span>
+  </div>
+  <div class="dense-table unified-grid" data-datagrid id="endpointGrid" data-grid-key="project-{{ project.id }}-endpoints">
+    <div class="dense-head grid-endpoint-v162"><span><input type="checkbox" data-grid-select-all></span><button data-sort-key="method">方法</button><button data-sort-key="path">接口</button><button data-sort-key="status">HTTP</button><button data-sort-key="asset">资产</button><button data-sort-key="source">来源</button><button data-sort-key="params">参数</button><span>操作</span></div>
+    {% for e in endpoints %}{% set efp=fingerprint_map.get(e.asset_id,[]) %}
+    <div class="dense-row grid-endpoint-v162 inspector-source" tabindex="0" data-grid-row
+      data-method="{{ e.method }}" data-path="{{ (e.normalized_path or (e.url|redact_url))|lower }}"
+      data-status="{{ e.status_code or 0 }}" data-asset="{{ asset_map.get(e.asset_id,'')|lower }}"
+      data-source="{{ e.source|lower }}" data-params="{{ parameter_map.get(e.id,[])|length }}"
+      data-auth="{{ 1 if e.auth_observed else 0 }}"
+      data-inspector-kind="接口详情"
+      data-inspector-title="{{ e.method }} {{ e.normalized_path or (e.url|redact_url) }}"
+      data-inspector-subtitle="{{ e.url|redact_url }}"
+      data-inspector-meta="HTTP {{ e.status_code or '—' }}｜资产 {{ asset_map.get(e.asset_id,'—') }}｜来源 {{ e.source }}｜参数 {{ parameter_map.get(e.id,[])|length }}{% if e.auth_observed %}｜已观察鉴权{% endif %}"
+      data-inspector-primary-post="/projects/{{ project.id }}/requests/from-endpoint/{{ e.id }}"
+      data-inspector-primary-label="发送到请求工作台"
+      data-inspector-secondary-url="/projects/{{ project.id }}/asset-intelligence#fingerprints"
+      data-inspector-secondary-label="查看资产指纹">
+      <span><input type="checkbox" data-grid-select-row></span>
+      <span><span class="method {{ e.method|lower }}">{{ e.method }}</span></span>
+      <span class="primary-cell"><b class="mono truncate">{{ e.normalized_path or (e.url|redact_url) }}</b><small class="truncate">{{ e.url|redact_url }}{% if efp %} · {% for fp in efp[:3] %}{{ fp.product }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}</small></span>
+      <span>{{ e.status_code or '—' }}</span><span class="mono truncate">{{ asset_map.get(e.asset_id,'—') }}</span><span>{{ e.source }}</span><span>{{ parameter_map.get(e.id,[])|length }}</span>
+      <span class="grid-actions-cell"><details class="context-actions"><summary>操作 ▾</summary><div class="context-actions-menu">
+        <form method="post" action="/projects/{{ project.id }}/requests/from-endpoint/{{ e.id }}"><button type="submit">发送到请求工作台</button></form>
+        <form method="post" action="/projects/{{ project.id }}/context/endpoints/{{ e.id }}/browser"><button type="submit">浏览器观察</button></form>
+        <button type="button" data-copy-text="{{ e.url|redact_url }}">复制</button>
+        <a href="/projects/{{ project.id }}/asset-intelligence#fingerprints">查看资产指纹</a>
+      </div></details></span>
+    </div>
+    {% else %}<div class="empty empty-action"><b>还没有接口资产</b><span>可以先导入 HAR / Postman / OpenAPI，或者使用浏览器观察建立接口清单。</span><div class="action-row"><a class="btn primary" href="/projects/{{ project.id }}/imports">导入接口数据</a><a class="btn" href="/projects/{{ project.id }}/browser">浏览器观察</a></div></div>{% endfor %}
+  </div>
+</section>
+
+<div class="tabbar">
+  <button class="tab active" data-tab-target="observed">本页接口 <span>{{ endpoints|length }}</span></button>
+  <button class="tab" data-tab-target="candidates">路由候选 <span>{{ routes|length }}</span></button>
+</div>
+
+<section class="panel flush tab-pane active" data-tab-pane="observed">
+  <div class="endpoint-inventory-list">
+    {% for e in endpoints %}
+    <article class="endpoint-inventory-card filter-row">
+      <div class="endpoint-inventory-head">
+        <span class="method {{ e.method|lower }}">{{ e.method }}</span>
+        <div><b>{{ e.normalized_path or (e.url|redact_url) }}</b><small>{{ e.url|redact_url }}</small></div>
+        <span class="status-code">{{ e.status_code or '—' }}</span>
+        {% if e.auth_observed %}<span class="source-tag">已观察鉴权</span>{% endif %}
+        <form method="post" action="/projects/{{ project.id }}/requests/from-endpoint/{{ e.id }}"><button class="row-action" type="submit">发送到请求工作台 →</button></form>
+      </div>
+      <div class="endpoint-inventory-meta">
+        <span>资产 {{ asset_map.get(e.asset_id,'—') }}</span>
+        <span>来源 {{ e.source }}</span>
+        <span>指纹 <code>{{ e.fingerprint[:14] if e.fingerprint else '—' }}</code></span>
+        <span>参数 {{ parameter_map.get(e.id,[])|length }}</span>
+      </div>
+      {% if parameter_map.get(e.id) %}
+      <div class="endpoint-param-table">
+        <div class="endpoint-param-head"><span>位置</span><span>参数名</span><span>类型</span><span>敏感</span><span>脱敏示例</span><span>来源</span></div>
+        {% for param in parameter_map.get(e.id,[]) %}
+        <div><span>{{ {'query':'Query','path':'Path','header':'Header','body':'Body'}.get(param.location,param.location) }}</span><b>{{ param.name }}</b><span>{{ param.value_type }}</span><span>{{ '是' if param.sensitive else '否' }}</span><code>{{ '••••' if param.sensitive else (param.example_redacted or '—') }}</code><span>{{ param.source }}</span></div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </article>
+    {% else %}<div class="empty">暂无已观察接口。</div>{% endfor %}
+  </div>
+</section>
+
+<section class="panel flush tab-pane" data-tab-pane="candidates">
+  <div class="dense-table endpoint-action-table">
+    <div class="dense-head grid-route-action"><span>方法</span><span>路由</span><span>置信度</span><span>来源</span><span></span></div>
+    {% for r in routes %}
+    <div class="dense-row grid-route-action filter-row">
+      <span><span class="method {{ r.method|lower }}">{{ r.method }}</span></span>
+      <span class="mono truncate">{{ r.path }}</span>
+      <span class="confidence {{ r.confidence }}">{{ r.confidence }}</span>
+      <span class="mono truncate">{{ r.source }}</span>
+      <span><form method="post" action="/projects/{{ project.id }}/requests/from-route/{{ r.id }}"><button class="row-action" type="submit">发送 →</button></form></span>
+    </div>
+    {% else %}<div class="empty">暂无路由候选。</div>{% endfor %}
+  </div>
+</section>
+{% endblock %}

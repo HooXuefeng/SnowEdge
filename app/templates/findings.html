@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}漏洞发现 · {{ project.name }}{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 漏洞发现{% endblock %}
+{% block content %}
+{% include "pagination.html" %}
+<div class="page-title-row compact">
+  <a class="btn primary" href="/projects/{{ project.id }}/findings/new">手工新建漏洞</a>
+  <div><div class="mini-label">漏洞清单 · 证据质量门</div><h1>漏洞发现</h1><p>除了风险等级，还检查 Evidence、请求/响应、截图、Proof Capsule 和复测是否足够支撑正式报告。</p></div>
+  <div class="severity-summary"><span class="severity critical">{{ stats.critical }} 严重</span><span class="severity high">{{ stats.high }} 高危</span><span class="severity medium">{{ stats.medium }} 中危</span><span class="severity low">{{ stats.low }} 低危</span><span class="severity info">{{ stats.info }} 信息</span></div>
+</div>
+
+<section class="metric-strip four">
+  <div><span>漏洞总数</span><b>{{ finding_quality_summary.count }}</b></div>
+  <div><span>平均证据质量</span><b>{{ finding_quality_summary.average }}</b></div>
+  <div><span>可交付</span><b>{{ finding_quality_summary.ready }}</b></div>
+  <div><span>需补证据</span><b>{{ finding_quality_summary.needs_work }}</b></div>
+</section>
+
+<section class="panel flush">
+  <div class="datagrid-toolbar" data-grid-toolbar="findingGrid">
+    <div class="grid-quick-filters" aria-label="本页快捷筛选">
+      <button class="grid-filter-chip active" type="button" data-grid-quick data-filter-key="" data-filter-value="">全部</button>
+      <button class="grid-filter-chip" type="button" data-grid-quick data-filter-key="severityname" data-filter-value="high">高危</button>
+      <button class="grid-filter-chip" type="button" data-grid-quick data-filter-key="severityname" data-filter-value="medium">中危</button>
+      <button class="grid-filter-chip" type="button" data-grid-quick data-filter-key="findingstate" data-filter-value="candidate">待确认</button>
+      <button class="grid-filter-chip" type="button" data-grid-quick data-filter-key="findingstate" data-filter-value="confirmed">已确认</button>
+      <button class="grid-filter-chip" type="button" data-grid-quick data-filter-key="ready" data-filter-value="0">需补证据</button>
+    </div>
+    <input class="grid-search" data-grid-search placeholder="筛选标题、CWE、目标、来源、状态…">
+    <button class="btn" type="button" data-grid-columns>列设置</button>
+    <button class="btn" type="button" data-grid-export>导出本页 CSV</button>
+    <button class="btn" type="button" data-grid-save-view>保存视图</button>
+    <span class="grid-count"></span>
+  </div>
+  <div class="dense-table unified-grid" data-datagrid id="findingGrid" data-grid-key="project-{{ project.id }}-findings">
+    <div class="dense-head grid-finding-v162"><span><input type="checkbox" data-grid-select-all></span><button data-sort-key="severity">等级</button><button data-sort-key="title">漏洞</button><button data-sort-key="quality">质量</button><button data-sort-key="taxonomy">类型 / CWE / txb02</button><button data-sort-key="target">目标</button><button data-sort-key="source">来源</button><button data-sort-key="time">时间</button><span>操作</span></div>
+    {% for f in findings %}{% set q = finding_quality_map.get(f.id) %}
+    <div class="dense-row grid-finding-v162 inspector-source" tabindex="0" data-grid-row
+      data-severity="{{ {'high':4,'medium':3,'low':2,'info':1}.get(f.severity,0) }}"
+      data-severityname="{{ f.severity }}" data-findingstate="{{ f.finding_state }}"
+      data-ready="{{ 1 if q and q.ready else 0 }}"
+      data-title="{{ f.title|lower }}" data-quality="{{ q.score if q else 0 }}"
+      data-taxonomy="{{ (f.cwe_id ~ ' ' ~ f.vuln_type ~ ' ' ~ f.txb02_category)|lower }}"
+      data-target="{{ (f.target|redact_url)|lower }}" data-source="{{ f.source|lower }}"
+      data-time="{{ f.created_at.timestamp() if f.created_at else 0 }}"
+      data-inspector-kind="漏洞详情"
+      data-inspector-title="{{ f.title }}"
+      data-inspector-subtitle="{{ f.target|redact_url }}"
+      data-inspector-meta="{{ {'high':'高危','medium':'中危','low':'低危','info':'信息'}.get(f.severity,f.severity) }}｜{{ f.finding_state|status_zh }}｜证据质量 {{ q.score if q else 0 }}/100｜{{ f.cwe_id or '未映射 CWE' }}｜来源 {{ f.source }}"
+      data-inspector-primary-url="/findings/{{ f.id }}"
+      data-inspector-primary-label="打开漏洞详情"
+      data-inspector-secondary-url="/projects/{{ project.id }}/remediation"
+      data-inspector-secondary-label="整改与复测">
+      <span><input type="checkbox" data-grid-select-row></span>
+      <span><span class="severity {{ f.severity }}">{{ {'high':'高危','medium':'中危','low':'低危','info':'信息'}.get(f.severity,f.severity) }}</span></span>
+      <span class="primary-cell"><a href="/findings/{{ f.id }}"><b>{{ f.title }}</b></a><small>Finding #{{ f.id }} · {{ f.finding_state|status_zh }} · {{ f.fingerprint[:12] if f.fingerprint else '未生成指纹' }}</small></span>
+      <span><span class="quality-badge grade-{{ q.grade|lower if q else 'd' }}">{{ q.score if q else 0 }}/100 · {{ q.grade if q else 'D' }}</span></span>
+      <span class="finding-taxonomy-cell"><b>{{ f.vuln_type or '待分类' }}</b><small>{{ f.cwe_id or '—' }}{% if f.txb02_category %} · txb02 {{ f.txb02_category }}{% endif %}</small></span>
+      <span class="mono truncate">{{ f.target|redact_url }}</span><span class="source-tag">{{ f.source }}</span><span>{{ f.created_at.strftime('%m-%d %H:%M') if f.created_at else '—' }}</span>
+      <span class="grid-actions-cell"><details class="context-actions"><summary>操作 ▾</summary><div class="context-actions-menu"><a href="/findings/{{ f.id }}">打开 Finding</a><button type="button" data-copy-text="{{ f.target|redact_url }}">复制目标</button><a href="/projects/{{ project.id }}/reports">报告 / Preflight</a><a href="/projects/{{ project.id }}/remediation">整改与复测</a></div></details></span>
+    </div>
+    {% else %}<div class="empty empty-action"><b>当前还没有漏洞记录</b><span>这不代表测试完成。建议先查看覆盖缺口，确认是否还有未测试方向。</span><div class="action-row"><a class="btn primary" href="/projects/{{ project.id }}/coverage">查看测试覆盖度</a><a class="btn" href="/projects/{{ project.id }}/requests">打开请求工作台</a></div></div>{% endfor %}
+  </div>
+</section>
+{% endblock %}

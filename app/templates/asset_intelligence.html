@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}资产智能 · {{ project.name }}{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 资产智能{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div>
+    <div class="mini-label">资产智能 · V1.7.0</div>
+    <h1>资产智能与测试配置</h1>
+    <p>把已有 Evidence、服务 Banner、Web Discovery、测试 Skill 和网络路由连成一个个人安全测试工作流。指纹只用于识别和推荐，不会自动获得新的攻击权限。</p>
+  </div>
+  <div class="scope-badge"><span class="status-dot ok"></span>Scope / Policy 仍为最终执行边界</div>
+</div>
+
+<section class="metric-strip six">
+  <div><span>指纹</span><b>{{ fingerprints|length }}</b></div>
+  <div><span>自定义规则</span><b>{{ fingerprint_rules|length }}</b></div>
+  <div><span>扫描预设</span><b>{{ scan_profiles|length }}</b></div>
+  <div><span>网络路由</span><b>{{ route_profiles|length }}</b></div>
+  <div><span>批量任务</span><b>{{ batch_runs|length }}</b></div>
+  <div><span>批量闸门</span><b>单目标串行</b></div>
+</section>
+
+<div class="tabbar asset-intel-tabs">
+  <button class="tab active" data-tab-target="fingerprints">指纹 <span>{{ fingerprints|length }}</span></button>
+  <button class="tab" data-tab-target="rules">自定义规则 <span>{{ fingerprint_rules|length }}</span></button>
+  <button class="tab" data-tab-target="profiles">扫描预设 <span>{{ scan_profiles|length }}</span></button>
+  <button class="tab" data-tab-target="routes">网络路由 <span>{{ route_profiles|length }}</span></button>
+  <button class="tab" data-tab-target="batch">批量任务 <span>{{ batch_runs|length }}</span></button>
+</div>
+
+<section class="panel flush tab-pane active" data-tab-pane="fingerprints" id="fingerprints">
+  <div class="panel-title">
+    <div><h2>指纹引擎 2.0</h2><small>从已经保存的 HTTP 证据 / Web Discovery / 服务 Banner 做本地确定性识别；刷新不会发送网络请求</small></div>
+    <form method="post" action="/projects/{{ project.id }}/fingerprints/refresh"><button class="btn" type="submit">重新分析已有证据</button></form>
+  </div>
+  <div class="datagrid-toolbar" data-grid-toolbar="fingerprintsGrid">
+    <input class="grid-search" data-grid-search placeholder="筛选产品、类别、资产…">
+    <button class="btn" type="button" data-grid-export>导出 CSV</button>
+    <button class="btn" type="button" data-grid-save-view>保存视图</button>
+    <span class="grid-count">{{ fingerprints|length }} rows</span>
+  </div>
+  <div class="dense-table unified-grid" data-datagrid id="fingerprintsGrid" data-grid-key="project-{{ project.id }}-fingerprints">
+    <div class="dense-head grid-fingerprint-v162">
+      <span><input type="checkbox" data-grid-select-all></span>
+      <button data-sort-key="category">类别</button><button data-sort-key="product">产品</button><button data-sort-key="asset">资产</button>
+      <button data-sort-key="confidence">置信度</button><span>证据</span><span>安全建议</span>
+    </div>
+    {% for fp in fingerprints %}
+    <div class="dense-row grid-fingerprint-v162" data-grid-row data-category="{{ fp.category }}" data-product="{{ fp.product|lower }}" data-asset="{{ asset_map.get(fp.asset_id,'')|lower }}" data-confidence="{{ fp.confidence }}">
+      <span><input type="checkbox" data-grid-select-row></span>
+      <span><span class="fingerprint-category {{ fp.category }}">{{ fp.category }}</span></span>
+      <span><b>{{ fp.product }}</b>{% if fp.version %}<small>v{{ fp.version }}</small>{% endif %}</span>
+      <span class="mono truncate">{{ asset_map.get(fp.asset_id,'—') }}</span>
+      <span class="fp-confidence"><b>{{ fp.confidence }}%</b><small>{{ fp.detection_mode }}</small></span>
+      <span class="fp-evidence"><small>{{ fp.evidence_source }}</small><code>{{ fp.rule_id }}</code></span>
+      <span class="fp-advice"><small>{{ fingerprint_recommendations.get(fp.id,'') }}</small></span>
+    </div>
+    {% else %}<div class="empty">暂无指纹。运行一次安全评估或导入已有 HTTP 证据后再刷新。</div>{% endfor %}
+  </div>
+  <div class="notice">检测到 WAF / 安全边界设备 时只改变测试建议：优先被动分析、浏览器观察、被动导入，并降低重复探测；不会自动做绕过或代理轮换规避封禁。</div>
+</section>
+
+<section class="panel tab-pane" data-tab-pane="rules" id="rules">
+  <div class="panel-title"><div><h2>自定义被动指纹规则</h2><small>仅支持安全的 contains 匹配，不执行用户正则或脚本</small></div></div>
+  <form method="post" action="/projects/{{ project.id }}/fingerprint-rules" class="settings-form-grid fingerprint-rule-form">
+    <div><label>规则名称</label><input name="name" required placeholder="例如：内部 Gateway Header"></div>
+    <div><label>产品名称</label><input name="product" required placeholder="Internal Gateway"></div>
+    <div><label>类别</label><select name="category" class="select-control">{% for c in safe_categories %}<option>{{ c }}</option>{% endfor %}</select></div>
+    <div><label>来源</label><select name="source" class="select-control">{% for c in safe_sources %}<option>{{ c }}</option>{% endfor %}</select></div>
+    <div><label>Header 名（source=header）</label><input name="header_name" placeholder="X-Gateway-Version"></div>
+    <div><label>置信度</label><input type="number" name="confidence" min="1" max="100" value="80"></div>
+    <div class="wide"><label>包含字符串</label><input name="pattern" required maxlength="300" placeholder="只做大小写不敏感 substring 匹配"></div>
+    <div><label class="checkbox-line"><input type="checkbox" name="global_rule"> 所有个人项目可用</label></div>
+    <div class="wide"><button class="btn primary" type="submit">保存规则并重新分析</button></div>
+  </form>
+  <div class="simple-list rule-list">
+    {% for r in fingerprint_rules %}
+    <div><div><b>{{ r.name }}</b><small>{{ r.category }} · {{ r.product }} · {{ r.source }}{% if r.header_name %}:{{ r.header_name }}{% endif %} contains “{{ r.pattern }}” · {{ r.confidence }}%</small></div><form method="post" action="/projects/{{ project.id }}/fingerprint-rules/{{ r.id }}/delete"><button class="row-action" type="submit">删除</button></form></div>
+    {% else %}<div class="empty small">没有自定义规则。内置规则仍然生效。</div>{% endfor %}
+  </div>
+</section>
+
+<section class="panel tab-pane" data-tab-pane="profiles" id="profiles">
+  <div class="panel-title"><div><h2>扫描预设</h2><small>把当前启用的安全 Skills 保存成个人预设；预设只控制已有 Capability，不会新增执行能力</small></div></div>
+  <form method="post" action="/projects/{{ project.id }}/scan-profiles/capture" class="scan-profile-create">
+    <input name="name" required placeholder="例如：客户 Web/API 标准流程">
+    <input name="description" placeholder="用途说明">
+    <label>批量目标上限 <input type="number" name="batch_target_limit" min="1" max="50" value="20"></label>
+    <button class="btn primary" type="submit">保存当前技能配置</button>
+  </form>
+  <div class="profile-grid">
+    {% for profile in scan_profiles %}{% set pp=scan_profile_payloads.get(profile.id) %}
+    <article class="profile-card {% if active_scan_profile and active_scan_profile.id==profile.id %}active{% endif %}">
+      <header><div><span class="mini-label">预设 #{{ profile.id }}</span><h3>{{ profile.name }}</h3></div>{% if active_scan_profile and active_scan_profile.id==profile.id %}<span class="run-state done">当前</span>{% endif %}</header>
+      <p>{{ profile.description or '无说明' }}</p>
+      <div class="profile-skill-cloud">{% for slug in pp.skills %}<code>{{ slug }}</code>{% endfor %}</div>
+      <footer><span>批量目标 ≤ {{ profile.batch_target_limit }}</span><div class="action-row"><form method="post" action="/projects/{{ project.id }}/scan-profiles/{{ profile.id }}/apply"><button class="row-action" type="submit">应用</button></form><form method="post" action="/projects/{{ project.id }}/scan-profiles/{{ profile.id }}/delete"><button class="row-action" type="submit">删除</button></form></div></footer>
+    </article>
+    {% else %}<div class="empty">暂无扫描预设。可以先在技能中心调整能力，再回这里保存。</div>{% endfor %}
+  </div>
+  <details class="safe-detail"><summary>当前项目技能快照</summary><div class="profile-skill-cloud">{% for skill,row in skill_rows %}<code class="{{ 'enabled' if row.enabled else 'disabled' }}">{{ skill.slug }}</code>{% endfor %}</div></details>
+</section>
+
+<section class="panel tab-pane" data-tab-pane="routes" id="routes">
+  <div class="panel-title"><div><h2>网络路由预设</h2><small>支持直连 / HTTP / SOCKS5 / Burp；实际接入 HTTP 探测、Web 发现、请求重放与浏览器观察</small></div></div>
+  <div class="route-current"><span>当前路由</span><b>{{ active_route_profile.name if active_route_profile else '直连' }}</b><code>{{ active_route_profile.route_type if active_route_profile else 'direct' }}</code></div>
+  <form method="post" action="/projects/{{ project.id }}/network-routes/select" class="route-select-form">
+    <select name="route_id" class="select-control"><option value="">直连</option>{% for r in route_profiles %}<option value="{{ r.id }}" {% if active_route_profile and active_route_profile.id==r.id %}selected{% endif %}>{{ r.name }} · {{ r.route_type }}</option>{% endfor %}</select>
+    <button class="btn" type="submit">应用到当前项目</button>
+  </form>
+  <form method="post" action="/projects/{{ project.id }}/network-routes" class="settings-form-grid route-create-form">
+    <div><label>名称</label><input name="name" required placeholder="Burp Local"></div>
+    <div><label>类型</label><select name="route_type" class="select-control"><option value="direct">直连</option><option value="http">HTTP 代理</option><option value="socks5">SOCKS5</option><option value="burp">Burp 本地代理</option></select></div>
+    <div><label>主机</label><input name="host" placeholder="127.0.0.1"></div>
+    <div><label>端口</label><input type="number" name="port" min="0" max="65535" value="8080"></div>
+    <div><label>用户名</label><input name="username"></div>
+    <div><label>密码</label><input name="password" type="password" placeholder="加密保存"></div>
+    <div class="wide"><label>说明</label><input name="notes" placeholder="例如：客户 VPN 内部 HTTP Proxy / Burp Local"></div>
+    <div class="wide"><button class="btn primary" type="submit">保存并应用</button></div>
+  </form>
+  <div class="route-profile-grid">
+    <article><b>直连</b><small>HTTP / 浏览器 / TCP 均直接连接。</small></article>
+    {% for r in route_profiles %}{% set rp=route_payloads.get(r.id) %}<article class="{% if active_route_profile and active_route_profile.id==r.id %}active{% endif %}"><b>{{ r.name }}</b><code>{{ r.route_type }}://{{ r.host }}:{{ r.port }}</code><small>{{ r.notes or '密码不会回显到页面。' }}</small></article>{% endfor %}
+  </div>
+  <div class="notice">如果选择非 Direct 路由，V1.7.0 不会偷偷用 Direct 做 Nmap/TCP 端口扫描；该步骤会被安全跳过。HTTP/Browser/Replay 才会使用配置代理。</div>
+</section>
+
+<section class="panel tab-pane" data-tab-pane="batch" id="batch">
+  <div class="panel-title"><div><h2>批量任务</h2><small>多个授权目标合并成一个持久化任务；单个批次内按个人工作站资源闸门串行执行</small></div></div>
+  <p>新批量任务请在扫描中心创建。此处仅保留历史批次记录。</p><a class="btn primary" href="/projects/{{ project.id }}/scan-center">进入扫描中心</a>
+  <div class="batch-list">
+    {% for b in batch_runs %}
+    <details class="batch-card" {% if loop.first %}open{% endif %}>
+      <summary><div><b>#{{ b.id }} · {{ b.name }}</b><small>{{ b.status }} · gate={{ b.resource_gate }} · max_parallel={{ b.max_parallel }}</small></div><span>{{ b.completed_targets }}/{{ b.total_targets }} done · {{ b.failed_targets }} failed · {{ b.skipped_targets }} skipped</span></summary>
+      <div class="batch-items">
+        {% for item in batch_items.get(b.id,[]) %}<div><span class="run-state {{ item.status }}">{{ item.status|status_zh }}</span><code>{{ item.target|redact_url }}</code><small>{{ item.detail }}</small></div>{% endfor %}
+      </div>
+    </details>
+    {% else %}<div class="empty">暂无批量任务。</div>{% endfor %}
+  </div>
+</section>
+{% endblock %}

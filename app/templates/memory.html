@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}测试记忆 · {{ project.name }}{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 测试记忆{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div>
+    <div class="mini-label">DO NOT REPEAT WHAT IS ALREADY KNOWN</div>
+    <h1>测试记忆</h1>
+    <p>沉淀覆盖度、浏览器会话、响应差异、权限验证、漏洞与复测形成的结构化结论。</p>
+  </div>
+  <form method="post" action="/projects/{{ project.id }}/memory/refresh">
+    <button class="btn primary" type="submit">刷新测试记忆</button>
+  </form>
+</div>
+
+<section class="metric-strip four">
+  <div><span>MEMORIES</span><b>{{ memory_summary.count }}</b></div>
+  <div><span>AVOID REPEAT</span><b>{{ memory_summary.avoid_repeat }}</b></div>
+  <div><span>NEEDS REVIEW</span><b>{{ memory_summary.needs_review }}</b></div>
+  <div><span>MEMORY TYPES</span><b>{{ memory_summary.by_type|length }}</b></div>
+</section>
+
+<section class="panel memory-filter">
+  <form method="get" action="/projects/{{ project.id }}/memory">
+    <div>
+      <label>记忆类型</label>
+      <select name="memory_type" class="select-control">
+        <option value="">All</option>
+        {% for key, count in memory_types %}
+        <option value="{{ key }}" {% if selected_memory_type==key %}selected{% endif %}>{{ key }} ({{ count }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>重复测试建议</label>
+      <select name="guidance" class="select-control">
+        <option value="">All</option>
+        {% for key, count in guidance_types %}
+        <option value="{{ key }}" {% if selected_guidance==key %}selected{% endif %}>{{ key }} ({{ count }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn" type="submit">筛选</button>
+  </form>
+</section>
+
+<section class="panel flush">
+  <div class="panel-title"><div><h2>测试记忆记录</h2><small>{{ memories|length }} visible record(s)</small></div></div>
+  <div class="dense-table">
+    <div class="dense-head grid-memory"><span>ID</span><span>Type</span><span>Guidance</span><span>Outcome</span><span>置信度</span><span>Subject</span><span>Summary</span></div>
+    {% for m in memories %}
+    <div class="dense-row grid-memory filter-row">
+      <span>#{{ m.id }}</span>
+      <span><span class="source-tag">{{ m.memory_type }}</span></span>
+      <span><span class="memory-guidance {{ m.repeat_guidance }}">{{ m.repeat_guidance }}</span></span>
+      <span>{{ m.outcome }}</span>
+      <span>{{ m.confidence }}%</span>
+      <span class="mono truncate">{{ m.subject }}</span>
+      <span class="truncate">{{ m.summary }}</span>
+    </div>
+    {% else %}<div class="empty">No assessment memories.</div>{% endfor %}
+  </div>
+</section>
+
+<div class="split two">
+  <section class="panel">
+    <div class="mini-label">测试记忆如何使用</div>
+    <div class="memory-rules">
+      <div><b>avoid_repeat</b><small>A prior high-confidence control/result already exists; review it before scheduling the same test again.</small></div>
+      <div><b>confirm_or_retest</b><small>A candidate issue exists and should be manually confirmed or retested rather than rediscovered from zero.</small></div>
+      <div><b>retest_after_fix</b><small>A reproduced issue should be checked again after remediation.</small></div>
+      <div><b>review</b><small>证据 is incomplete or a previous run failed.</small></div>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="mini-label">测试记忆边界</div>
+    <div class="key-value">
+      <div><span>Passwords / Cookies copied</span><b>NO</b></div>
+      <div><span>Raw response body copied</span><b>NO</b></div>
+      <div><span>Prior result blocks manual retest</span><b>NO</b></div>
+      <div><span>Purpose</span><b>REDUCE DUPLICATE WORK</b></div>
+    </div>
+  </section>
+</div>
+{% endblock %}

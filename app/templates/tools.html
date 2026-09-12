@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}实用工具 · 工作台{% endblock %}
+{% block breadcrumb %}实用工具{% endblock %}
+{% block content %}
+<div class="page-title-row"><div><div class="mini-label">日常排查 · 信息整理</div><h1>实用工具</h1><p>从一个小问题开始。选择工具，输入内容，立即查看结果。</p></div><a class="btn" href="/diagnostics">工作台系统诊断</a></div>
+<p class="context-help">编码识别与解码已集中到 <a href="/decoder{% if project %}?project_id={{ project.id }}{% endif %}">自动解码 →</a></p>
+<div class="tool-layout">
+  <section class="tool-catalog" aria-label="选择工具">
+    <label class="sr-only" for="toolSearch">查找工具</label><input id="toolSearch" type="search" placeholder="查找工具…" autocomplete="off"><p id="toolSearchEmpty" hidden>没有匹配工具，试试其他关键词。</p>
+    {% for group in ['信息搜集','运维诊断','本地处理'] %}
+    <h2>{{ group }}</h2>
+    {% for tool in tools if tool.group == group %}
+    <button type="button" class="tool-card" data-tool="{{ tool.id }}" data-name="{{ tool.name }}" data-description="{{ tool.description }}" data-placeholder="{{ tool.placeholder }}" data-network="{{ 'true' if tool.network else 'false' }}" aria-pressed="false"><b>{{ tool.name }}</b><span>{{ tool.description }}</span></button>
+    {% endfor %}{% endfor %}
+  </section>
+  <div class="tool-workbench">
+    <section class="panel">
+      <div class="panel-title"><div><span class="mini-label">01 / 输入</span><h2 id="toolTitle">选择一个工具</h2><p id="toolDescription"></p></div></div>
+      <form id="utilityForm">
+        <div id="toolProjectField"><label for="toolProject">所属项目</label><select id="toolProject" class="select-control"><option value="">选择项目以校验授权范围</option>{% for p in tool_projects %}<option value="{{ p.id }}" {% if project and project.id == p.id %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select><p class="context-help">网络诊断限定单个目标；HTTP 使用项目代理，DNS / TCP / TLS 使用直连。</p></div>
+        <label for="toolValue" id="toolValueLabel">目标地址</label><textarea id="toolValue" rows="4" maxlength="32000" required spellcheck="false"></textarea>
+        <div class="tool-submit"><span id="toolPrivacy" class="context-help"></span><button type="submit" class="btn primary" id="toolRun">运行工具</button></div>
+      </form>
+    </section>
+    <section class="panel tool-output" aria-busy="false" id="toolOutput">
+      <div class="panel-title"><div><span class="mini-label">02 / 结果</span><h2>运行结果</h2></div><div class="action-row"><button type="button" class="btn" id="toolCopy" hidden>复制结果</button><button type="button" class="btn" id="toolDownload" hidden>下载 JSON</button></div></div>
+      <p id="toolStatus" role="status" aria-live="polite">输入内容后点击“运行工具”，结果会显示在这里。</p>
+      <div id="toolResult"></div>
+      <div class="action-row" id="toolNext" hidden><button type="button" class="btn primary" id="toolSave">加入项目资产</button><a class="btn" id="toolAssets" href="/">查看项目资产 →</a></div>
+      <div class="tool-handoff" id="toolHandoff" hidden><p>脱敏诊断已留存。接下来可以：</p><div class="action-row"><a class="btn" id="toolEvidence" href="/">查看证据</a><button class="btn" id="toolRequest" type="button">送到请求工作台</button><a class="btn primary" id="toolAi" href="/">让 AI 解读</a></div><small>请求工作台只准备草稿，不自动发送；查询参数需重新补齐。</small></div>
+    </section>
+  </div>
+</div>
+<script src="/static/tools.js" defer></script>
+{% endblock %}

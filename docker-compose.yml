@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-snowedge}
+      POSTGRES_USER: ${POSTGRES_USER:-snowedge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD before starting Docker}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-snowedge} -d ${POSTGRES_DB:-snowedge}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  web:
+    build: .
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL before starting Docker}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:?Set APP_SECRET_KEY before starting Docker}
+      AI_PROVIDER: ${AI_PROVIDER:-mock}
+      JOB_EMBEDDED_WORKERS: "0"
+      JOB_IMMEDIATE_ACCELERATOR: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - browser_artifacts:/app/browser_artifacts
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  worker:
+    build: .
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL before starting Docker}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:?Set APP_SECRET_KEY before starting Docker}
+      AI_PROVIDER: ${AI_PROVIDER:-mock}
+      JOB_EMBEDDED_WORKERS: "0"
+      JOB_IMMEDIATE_ACCELERATOR: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - browser_artifacts:/app/browser_artifacts
+    command: ["python", "worker.py", "--name", "worker-1"]
+
+volumes:
+  postgres_data:
+  browser_artifacts:

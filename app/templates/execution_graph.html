@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}执行图谱 · {{ project.name }}{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 执行图谱{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div>
+    <div class="mini-label">PLAN → EXECUTION → TRACE</div>
+    <h1>执行图谱</h1>
+    <p>查看每个已批准 Skill 的规划原因、依赖关系、执行状态以及对应 SkillRun。</p>
+  </div>
+  <div class="action-row">
+    <a class="btn" href="/projects/{{ project.id }}/skills/planner{% if selected_plan %}?plan={{ selected_plan.id }}{% endif %}">技能规划</a>
+    <a class="btn" href="/projects/{{ project.id }}/agent">Mission Control</a>
+  </div>
+</div>
+
+{% if selected_plan %}
+<section class="metric-strip four">
+  <div><span>PLAN</span><b>#{{ selected_plan.id }}</b><small>{{ selected_plan.status }}</small></div>
+  <div><span>NODES</span><b>{{ graph.node_count }}</b><small>Skill nodes</small></div>
+  <div><span>APPROVED</span><b>{{ plan_payload.approved_skills|length }}</b><small>exact Skill selection</small></div>
+  <div><span>AGENT RUN</span><b>{% if selected_plan.executed_agent_run_id %}#{{ selected_plan.executed_agent_run_id }}{% else %}—{% endif %}</b><small>linked execution</small></div>
+</section>
+
+<div class="graph-toolbar panel">
+  <div>
+    <span class="mini-label">TARGET</span>
+    <code>{{ selected_plan.target or 'evidence-only plan' }}</code>
+  </div>
+  <div class="graph-status-legend">
+    <span><i class="gdot planned"></i>planned</span>
+    <span><i class="gdot approved"></i>approved</span>
+    <span><i class="gdot done"></i>done</span>
+    <span><i class="gdot manual_ready"></i>manual</span>
+    <span><i class="gdot skipped"></i>skipped</span>
+    <span><i class="gdot disabled"></i>disabled</span>
+  </div>
+</div>
+
+<div class="execution-graph">
+  {% for stage in graph.stages %}
+  <section class="graph-stage">
+    <div class="graph-stage-head">
+      <span>{{ "%02d"|format(loop.index) }}</span>
+      <div><b>{{ stage.stage|replace('_',' ') }}</b><small>{{ stage.nodes|length }} node(s)</small></div>
+    </div>
+    <div class="graph-stage-nodes">
+      {% for node in stage.nodes %}
+      <article class="graph-node {{ node.status }}">
+        <div class="graph-node-top">
+          <div>
+            <span class="graph-status {{ node.status }}">{{ node.status }}</span>
+            <span class="skill-mode {{ node.execution_mode|lower }}">{{ node.execution_mode }}</span>
+          </div>
+          {% if node.skill_run_id %}<a href="/projects/{{ project.id }}/tasks" class="graph-run-link">SkillRun #{{ node.skill_run_id }}</a>{% endif %}
+        </div>
+        <h3>{{ node.label }}</h3>
+        <code>{{ node.slug }}</code>
+        <p>{{ node.rationale }}</p>
+
+        <div class="graph-node-meta">
+          <div>
+            <span>CAPABILITIES</span>
+            <div class="skill-capabilities">
+              {% for cap in node.capabilities %}<code>{{ cap }}</code>{% else %}<code>knowledge-only</code>{% endfor %}
+            </div>
+          </div>
+          <div>
+            <span>DEPENDS ON</span>
+            <div class="graph-deps">
+              {% for dep in node.depends_on %}<code>{{ dep }}</code>{% else %}<em>root / evidence-driven</em>{% endfor %}
+            </div>
+          </div>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% if not loop.last %}<div class="graph-stage-arrow">↓</div>{% endif %}
+  </section>
+  {% else %}
+  <div class="panel hero-empty"><div class="empty">This plan has no graph nodes.</div></div>
+  {% endfor %}
+</div>
+
+<section class="panel flush">
+  <div class="panel-title"><div><h2>规划历史</h2><small>Select another Skill Plan graph.</small></div></div>
+  <div class="dense-table">
+    <div class="dense-head grid-graph-history"><span>Plan</span><span>状态</span><span>目标</span><span>Approved Skills</span><span>Agent Run</span></div>
+    {% for p in plans %}
+    <a class="dense-row grid-graph-history filter-row" href="/projects/{{ project.id }}/execution-graph?plan={{ p.id }}">
+      <span>#{{ p.id }}</span>
+      <span><span class="run-state {{ p.status }}">{{ p.status }}</span></span>
+      <span class="mono truncate">{{ p.target or 'evidence-only' }}</span>
+      <span class="mono truncate">{{ p.approved_skills_json }}</span>
+      <span>{% if p.executed_agent_run_id %}#{{ p.executed_agent_run_id }}{% else %}—{% endif %}</span>
+    </a>
+    {% else %}<div class="empty">No plans.</div>{% endfor %}
+  </div>
+</section>
+{% else %}
+<section class="panel hero-empty">
+  <div class="empty"><b>No Skill Plan exists yet.</b><br>Create one in AI 技能规划 to generate an 执行图谱.</div>
+</section>
+{% endif %}
+{% endblock %}

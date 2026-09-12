@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}测试覆盖度 · {{ project.name }}{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 测试覆盖度{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div>
+    <div class="mini-label">已测试内容 · 当前缺口</div>
+    <h1>测试覆盖度</h1>
+    <p>既保留原有确定性覆盖评分，也新增更贴近个人渗透流程的 Endpoint、参数、身份、权限、截图与复测覆盖。</p>
+  </div>
+  <form method="post" action="/projects/{{ project.id }}/coverage/refresh">
+    <button class="btn primary" type="submit">刷新覆盖度</button>
+  </form>
+</div>
+
+<section class="coverage-hero panel">
+  <div class="coverage-score">
+    <div class="coverage-ring" style="--score:{{ coverage.score }}"><b>{{ coverage.score }}</b><span>/ 100</span></div>
+    <div><span class="mini-label">评估覆盖度</span><h2>{{ coverage.summary }}</h2><small>按测试重要性加权；部分证据只计部分分值，测试记忆不会虚构覆盖度。</small></div>
+  </div>
+  <div class="coverage-hero-stats">
+    <div><b>{{ coverage.covered }}</b><span>已覆盖</span></div>
+    <div><b>{{ coverage.partial }}</b><span>部分覆盖</span></div>
+    <div><b>{{ coverage.gap }}</b><span>缺口</span></div>
+    <div><b>{{ coverage.needs_review }}</b><span>待复核</span></div>
+  </div>
+</section>
+
+<section class="panel coverage-v2-panel">
+  <div class="panel-title"><div><h2>Coverage 2.0 · 个人测试流程覆盖</h2><small>把“资产覆盖”拆到 Endpoint、参数、身份、权限、截图和复测层面</small></div><span class="scope-badge">工作流 {{ coverage_dimensions.average }}/100</span></div>
+  <div class="coverage-dimension-grid">
+    {% for row in coverage_dimensions.rows %}
+    <article class="coverage-dimension {{ row.status }}">
+      <div><b>{{ row.label }}</b><span>{{ row.numerator }}/{{ row.denominator }}</span></div>
+      <div class="coverage-v2-bar"><span style="width:{{ row.score }}%"></span></div>
+      <footer>
+        <strong>{{ row.score }}%</strong>
+        <small>{{ row.next_step }}</small>
+        {% if row.key in ['endpoint','parameter'] %}
+        <a class="coverage-action" href="/projects/{{ project.id }}/endpoints">去补接口 →</a>
+        {% elif row.key == 'identity' %}
+        <a class="coverage-action" href="/projects/{{ project.id }}/sessions">去补身份 →</a>
+        {% elif row.key == 'authorization' %}
+        <a class="coverage-action" href="/projects/{{ project.id }}/authorization-matrix">开始权限验证 →</a>
+        {% elif row.key == 'browser' %}
+        <a class="coverage-action" href="/projects/{{ project.id }}/browser">打开浏览器观察 →</a>
+        {% elif row.key in ['finding_evidence','screenshot','proof'] %}
+        <a class="coverage-action" href="/projects/{{ project.id }}/findings">去补漏洞证据 →</a>
+        {% elif row.key == 'retest' %}
+        <a class="coverage-action" href="/projects/{{ project.id }}/remediation">开始复测 →</a>
+        {% endif %}
+      </footer>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+<div class="coverage-layout">
+  <section class="coverage-matrix">
+    {% for category, items in coverage_categories.items() %}
+    <div class="panel flush coverage-category">
+      <div class="panel-title"><div><h2>{{ category }}</h2><small>{{ items|length }} 个测试方向</small></div></div>
+      {% for item in items %}
+      <article class="coverage-row {{ item.status }}">
+        <div class="coverage-status-cell"><span class="coverage-state {{ item.status }}">{{ item.status }}</span><small>权重 {{ item.weight }}</small></div>
+        <div class="coverage-copy">
+          <div><b>{{ item.label }}</b><span>{{ item.evidence_count }} 条证据信号</span></div>
+          <p>{{ item.rationale }}</p>
+          {% if item.status != 'covered' %}<small class="coverage-next">下一步：{{ item.next_step }}</small>{% endif %}
+        </div>
+        <div class="coverage-bar"><span style="width:{% if item.status=='covered' %}100{% elif item.status=='partial' %}50{% elif item.status=='needs_review' %}35{% else %}0{% endif %}%"></span></div>
+      </article>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </section>
+
+  <aside class="coverage-side">
+    <section class="panel flush">
+      <div class="panel-title"><div><h2>优先缺口</h2><small>优先处理权重高且尚未覆盖的方向</small></div></div>
+      <div class="coverage-gap-list">
+        {% for gap in coverage.gaps[:10] %}
+        <div>
+          <span class="coverage-state {{ gap.status }}">{{ gap.status }}</span>
+          <div><b>{{ gap.label }}</b><small>{{ gap.next_step }}</small></div>
+          <em>{{ gap.weight }}</em>
+        </div>
+        {% else %}<div class="empty small">当前建模测试方向均已覆盖。</div>{% endfor %}
+      </div>
+    </section>
+
+    <section class="panel flush">
+      <div class="panel-title"><div><h2>快照历史</h2><small>对比不同阶段的测试进度</small></div></div>
+      <div class="coverage-history">
+        {% for row in coverage_history %}
+        <a href="/projects/{{ project.id }}/coverage?snapshot={{ row.id }}" class="{% if row.id==coverage.id %}active{% endif %}">
+          <span>#{{ row.id }}</span><b>{{ row.score }}/100</b><small>{{ row.created_at.strftime('%m-%d %H:%M') if row.created_at else '' }}</small>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+  </aside>
+</div>
+{% endblock %}

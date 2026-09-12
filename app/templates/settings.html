@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}项目设置 · {{ project.name }}{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 项目设置{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <a class="btn primary" href="/projects/{{ project.id }}/edit">编辑项目名与授权范围</a>
+  <div><div class="mini-label">PROJECT & RUNTIME</div><h1>项目设置</h1><p>维护项目基本信息、授权范围、AI 配置、执行策略与脱敏项目迁移。</p></div>
+</div>
+
+<div class="settings-columns">
+  <section class="panel settings-wide">
+    <div class="panel-title"><div><h2>项目与授权信息</h2><small>用于项目生命周期、报告与 Scope 审计</small></div></div>
+    <form method="post" action="/projects/{{ project.id }}/settings/engagement" class="settings-form-grid">
+      <div><label>客户名称</label><input name="client_name" value="{{ project.client_name }}" placeholder="例如：某某科技有限公司"></div>
+      <div><label>测试环境</label><select name="environment" class="select-control">
+        {% for value,label in [('test','测试环境'),('staging','预发布环境'),('production','生产环境'),('internal','内网环境')] %}
+        <option value="{{ value }}" {% if project.environment==value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select></div>
+      <div><label>项目类型</label><select name="engagement_type" class="select-control">
+        {% for value,label in [('authorized_pentest','授权渗透测试'),('security_assessment','安全评估'),('retest','复测'),('internal_review','内部安全检查')] %}
+        <option value="{{ value }}" {% if project.engagement_type==value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select></div>
+      <div><label>项目状态</label><select name="project_status" class="select-control">
+        {% for value,label in [('preparing','准备中'),('testing','测试中'),('paused','已暂停'),('remediation','整改中'),('retesting','复测中'),('completed','已完成'),('archived','已归档')] %}
+        <option value="{{ value }}" {% if project.status==value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select></div>
+      <div><label>开始日期</label><input name="start_date" type="date" value="{{ project.start_date }}"></div>
+      <div><label>结束日期</label><input name="end_date" type="date" value="{{ project.end_date }}"></div>
+      <div class="wide"><label>测试人员</label><input name="testers" value="{{ project_testers|join(', ') }}" placeholder="张三, 李四"></div>
+      <div class="wide"><label>授权说明</label><textarea name="authorization_note" placeholder="授权来源、测试窗口、禁止事项、特殊约束等">{{ project.authorization_note }}</textarea></div>
+      <div class="wide"><button class="btn primary" type="submit">保存项目信息</button></div>
+    </form>
+  </section>
+
+  <section class="panel"><div class="panel-title"><div><h2>个人工作台设置</h2><small>个人可靠性、凭据保险库、恢复能力与 V1.7.0 中文工作台配置</small></div></div><div class="action-row"><a class="btn primary" href="/setup">个人设置 / AI / 自动备份</a><a class="btn" href="/diagnostics">系统诊断</a>
+    <a class="btn" href="/vault?project_id={{ project.id }}">Secret Vault</a>
+    <a class="btn" href="/recovery">恢复中心</a><a class="btn" href="/projects/{{ project.id }}/backups">项目备份</a><a class="btn" href="/projects/{{ project.id }}/asset-intelligence">资产智能 / Route / Profile</a></div></section>
+
+<section class="panel">
+    <div class="panel-title"><div><h2>AI 提供方</h2><small>凭据仅保存在后端</small></div></div>
+    <div class="key-value">
+      <div><span>Provider</span><b>{{ ai_provider }}</b></div>
+      <div><span>模型</span><b>{{ ai_model }}</b></div>
+      <div><span>API Base</span><b class="mono truncate">{{ api_base or '未配置' }}</b></div>
+      <div><span>API Key</span><b>••••••••</b></div>
+      <div><span>向外部 AI 发送响应正文</span><b>{{ '开启' if ai_include_response_body else '关闭' }}</b></div>
+      <div><span>Identity 加密密钥</span><b class="{{ 'ok-text' if secret_key_configured else '' }}">{{ '已配置' if secret_key_configured else '默认值 / 必须修改' }}</b></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-title"><div><h2>执行策略</h2><small>不可由 AI 绕过的硬限制</small></div></div>
+    <div class="key-value">
+      <div><span>Scope Engine</span><b class="ok-text">强制启用</b></div>
+      <div><span>未知操作</span><b>默认拒绝</b></div>
+      <div><span>自动允许风险级别</span><b>READ_ONLY / LOW_RISK</b></div>
+      <div><span>请求超时</span><b>{{ request_timeout }} 秒</b></div>
+      <div><span>最大响应正文</span><b>{{ max_body }} bytes</b></div>
+      <div><span>持久化任务</span><b>启用</b></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-title"><div><h2>权限验证策略</h2><small>GET / HEAD 差异验证</small></div></div>
+    <div class="key-value">
+      <div><span>自动创建候选 Finding</span><b>{{ '开启' if authorization_auto_candidate_findings else '关闭' }}</b></div>
+      <div><span>最低确定性置信度</span><b>{{ authorization_auto_candidate_min_confidence }}%</b></div>
+      <div><span>自动化方法</span><b>仅 GET / HEAD</b></div>
+      <div><span>权限矩阵</span><b>最多 6 个显式身份</b></div>
+      <div><span>对象枚举</span><b>禁止</b></div>
+    </div>
+  </section>
+</div>
+
+<section class="panel">
+  <div class="panel-title"><div><h2>授权范围</h2><small>每行一条边界规则；任务执行时会保存 Scope Snapshot Hash</small></div></div>
+  <div class="scope-list">{% for rule in scope_rules %}<code>{{ rule }}</code>{% endfor %}</div>
+</section>
+
+<div class="split two">
+  <section class="panel">
+    <div class="mini-label">项目导出</div>
+    <h2>导出脱敏项目包</h2>
+    <p class="muted">用于项目迁移、演示或归档结构。不会导出 Identity 凭据、Cookie、Authorization、请求 Body、原始 Evidence、浏览器截图和整改备注正文。</p>
+    <a class="btn primary" href="/projects/{{ project.id }}/export">下载脱敏 ZIP</a>
+  </section>
+  <section class="panel">
+    <div class="mini-label">项目导入</div>
+    <h2>导入 V1.2–V1.6 脱敏项目包</h2>
+    <p class="muted">导入后会创建新项目；身份凭据必须重新配置，历史验证结论仅作为脱敏历史记录。</p>
+    <form method="post" action="/projects/import" enctype="multipart/form-data" class="import-project-form">
+      <input type="file" name="package" accept=".zip" required>
+      <button class="btn" type="submit">导入项目</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}截图标注 · {{ finding.title }}{% endblock %}
+{% block breadcrumb %}{{ project.name }} / Finding #{{ finding.id }} / 截图标注{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div><div class="mini-label">非破坏性截图标注</div><h1>截图标注</h1><p>原图保持不变。框选、打码、箭头只作为 标注元数据 保存，Word 导出时再渲染。</p></div>
+  <a class="btn" href="/findings/{{ finding.id }}#screenshots">返回漏洞详情</a>
+</div>
+
+<div class="annotation-layout">
+  <section class="panel annotation-stage">
+    <div class="annotation-toolbar">
+      <button type="button" class="btn annotation-mode active" data-mode="box">方框</button>
+      <button type="button" class="btn annotation-mode" data-mode="redact">打码</button>
+      <button type="button" class="btn annotation-mode" data-mode="arrow">箭头</button>
+      <button type="button" class="btn" id="annotationUndo">撤销</button>
+      <button type="button" class="btn" id="annotationClear">清空</button>
+    </div>
+    <div class="annotation-canvas-wrap">
+      <img id="annotationImage" src="/attachments/{{ attachment.id }}" alt="{{ attachment.label }}">
+      <canvas id="annotationCanvas"></canvas>
+    </div>
+  </section>
+
+  <aside class="panel annotation-side">
+    <form method="post" action="/attachments/{{ attachment.id }}/annotate" id="annotationForm">
+      <label>图注</label>
+      <textarea name="label" rows="3" required>{{ attachment.label }}</textarea>
+      <label>报告顺序</label>
+      <input type="number" name="sort_order" min="0" max="10000" value="{{ attachment.sort_order }}">
+      <input type="hidden" name="annotation_json" id="annotationJson" value='{{ annotations|tojson }}'>
+      <div class="key-value">
+        <div><span>SHA256</span><b class="mono">{{ attachment.file_sha256[:18] }}…</b></div>
+        <div><span>原图</span><b>保持不变</b></div>
+        <div><span>Word 报告</span><b>导出时渲染标注</b></div>
+      </div>
+      <div class="guard-note">“打码”会在报告渲染图上覆盖选中区域，但不会修改原始证据文件。</div>
+      <button class="btn primary full" type="submit">保存标注与图注</button>
+    </form>
+  </aside>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const image = document.getElementById('annotationImage');
+  const canvas = document.getElementById('annotationCanvas');
+  const ctx = canvas.getContext('2d');
+  const hidden = document.getElementById('annotationJson');
+  let mode = 'box';
+  let annotations = [];
+  try { annotations = JSON.parse(hidden.value || '[]'); } catch (_) {}
+  let start = null;
+  let draft = null;
+
+  function resize() {
+    const r = image.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.round(r.width));
+    canvas.height = Math.max(1, Math.round(r.height));
+    canvas.style.width = r.width + 'px';
+    canvas.style.height = r.height + 'px';
+    draw();
+  }
+  function coords(ev) {
+    const r = canvas.getBoundingClientRect();
+    return {x:(ev.clientX-r.left)/r.width, y:(ev.clientY-r.top)/r.height};
+  }
+  function paint(a) {
+    const x=a.x*canvas.width, y=a.y*canvas.height, w=a.w*canvas.width, h=a.h*canvas.height;
+    ctx.lineWidth=3;
+    if(a.type==='redact'){ctx.fillStyle='rgba(20,20,20,.92)';ctx.fillRect(x,y,w,h);return;}
+    ctx.strokeStyle='rgba(235,72,82,.95)';ctx.fillStyle='rgba(235,72,82,.95)';
+    if(a.type==='box'){ctx.strokeRect(x,y,w,h);return;}
+    const x2=x+w,y2=y+h;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x2,y2);ctx.stroke();
+    const ang=Math.atan2(y2-y,x2-x), head=14;
+    ctx.beginPath();ctx.moveTo(x2,y2);
+    ctx.lineTo(x2+head*Math.cos(ang+2.55),y2+head*Math.sin(ang+2.55));
+    ctx.lineTo(x2+head*Math.cos(ang-2.55),y2+head*Math.sin(ang-2.55));ctx.closePath();ctx.fill();
+  }
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    annotations.forEach(paint);
+    if(draft) paint(draft);
+    hidden.value=JSON.stringify(annotations);
+  }
+  canvas.addEventListener('pointerdown', ev => {start=coords(ev);draft=null;canvas.setPointerCapture(ev.pointerId);});
+  canvas.addEventListener('pointermove', ev => {
+    if(!start)return; const p=coords(ev);
+    draft={type:mode,x:Math.min(start.x,p.x),y:Math.min(start.y,p.y),w:Math.abs(p.x-start.x),h:Math.abs(p.y-start.y)};
+    if(mode==='arrow') draft={type:mode,x:start.x,y:start.y,w:p.x-start.x,h:p.y-start.y};
+    draw();
+  });
+  canvas.addEventListener('pointerup', ev => {
+    if(draft && (Math.abs(draft.w)>.005 || Math.abs(draft.h)>.005)) annotations.push(draft);
+    start=null;draft=null;draw();
+  });
+  document.querySelectorAll('.annotation-mode').forEach(btn => btn.addEventListener('click',()=>{
+    document.querySelectorAll('.annotation-mode').forEach(x=>x.classList.remove('active'));
+    btn.classList.add('active'); mode=btn.dataset.mode;
+  }));
+  document.getElementById('annotationUndo').addEventListener('click',()=>{annotations.pop();draw();});
+  document.getElementById('annotationClear').addEventListener('click',()=>{annotations=[];draw();});
+  image.addEventListener('load',resize); window.addEventListener('resize',resize);
+  if(image.complete) resize();
+})();
+</script>
+{% endblock %}
