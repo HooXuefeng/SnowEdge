@@ -5,7 +5,6 @@
 <h1 align="center">SnowEdge</h1>
 
 <p align="center">
-  # SnowEdge
   AI 驱动的渗透测试与安全评估工作台
   面向个人授权安全评估的工作台，集中管理资产、请求测试、漏洞、证据与报告，并提供 AI 辅助研判。
 </p>
