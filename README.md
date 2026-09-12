@@ -1,8 +1,15 @@
 # SnowEdge
 
 面向个人授权安全评估的工作台，集中管理资产、请求测试、漏洞、证据与报告，并提供 AI 辅助研判。
-![SnowEdge Logo]("app\static\brand\snowedge-app.png")
+<p align="center">
+  <img src="app/static/brand/snowedge-app.png" width="160">
+</p>
 
+<h1 align="center">SnowEdge</h1>
+
+<p align="center">
+  AI 驱动的渗透测试与安全评估工作台
+</p>
 **当前版本：1.7.2 · by SnowPeak**
 
 ## 工作流程
