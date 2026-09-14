@@ -1,0 +1,4 @@
+<section class="list-controls" aria-label="列表搜索与分页">
+<form method="get"><label class="sr-only" for="listQuery">搜索全部记录</label><input id="listQuery" name="q" value="{{ pagination.q }}" placeholder="搜索全部记录…"><button class="btn" type="submit">搜索</button>{% if pagination.q %}<a class="btn" href="{{ request.url.path }}">清除</a>{% endif %}</form>
+<div><span>共 {{ pagination.total }} 条 · 第 {{ pagination.page }} / {{ pagination.pages }} 页</span>{% if pagination.page > 1 %}<a class="btn" href="{{ pagination.previous }}">上一页</a>{% endif %}{% if pagination.page < pagination.pages %}<a class="btn" href="{{ pagination.next }}">下一页</a>{% endif %}</div>
+</section>

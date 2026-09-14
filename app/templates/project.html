@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} · 概览{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 概览{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div>
+    <div class="mini-label">项目工作台</div>
+    <h1>{{ project.name }}</h1>
+    <p>从这里继续未完成测试、查看当前缺口，并进入资产、请求、权限验证和报告工作流。</p>
+  </div>
+  <div class="project-heading-actions"><a class="btn primary" href="/projects/{{ project.id }}/workbench">进入个人作业台 →</a>{% if '*' in scope_rules %}<span class="scope-badge warning"><span class="status-dot"></span>不限制扫描目标</span>{% elif scope_rules %}<span class="scope-badge"><span class="status-dot ok"></span>授权范围已启用</span>{% else %}<a class="scope-badge warning" href="/projects/{{ project.id }}/edit"><span class="status-dot"></span>尚未设置范围 · 去设置</a>{% endif %}<span class="scope-badge subtle">模板：{{ project_template.name }}</span></div>
+</div>
+
+{% if request.query_params.get('scan') == 'queued' %}
+<div class="notice success">安全评估已加入任务队列。任务执行期间可在任务中心查看实时状态。</div>
+{% endif %}
+
+<nav class="workflow-path" aria-label="项目工作流程">
+<a href="/projects/{{ project.id }}/imports"><span>1</span><b>收集资产</b><small>导入接口与观察结果</small></a>
+<a href="/tools?project_id={{ project.id }}"><span>2</span><b>检查目标</b><small>解析、连通性和证书</small></a>
+<a href="/projects/{{ project.id }}/requests"><span>3</span><b>验证问题</b><small>请求与权限测试</small></a>
+<a href="/projects/{{ project.id }}/reports"><span>4</span><b>整理交付</b><small>证据、复测与报告</small></a>
+</nav>
+<div class="metric-strip six">
+  <div><span>资产</span><b data-stat="assets">{{ stats.assets }}</b></div>
+  <div><span>服务</span><b data-stat="services">{{ stats.services }}</b></div>
+  <div><span>接口</span><b data-stat="endpoints">{{ stats.endpoints }}</b></div>
+  <div><span>路由候选</span><b data-stat="routes">{{ stats.routes }}</b></div>
+  <div><span>漏洞</span><b data-stat="findings">{{ stats.findings }}</b></div>
+  <div><span>运行中</span><b data-stat="running_tasks">{{ stats.running_tasks }}</b></div>
+</div>
+
+<section class="panel continue-work-panel">
+  <div class="panel-title">
+    <div>
+      <h2>继续测试</h2>
+      <small>优先把未完成工作接起来，不需要重新寻找入口</small>
+    </div>
+    {% if current_coverage %}
+    <a class="coverage-inline-score" href="/projects/{{ project.id }}/coverage"><b>{{ current_coverage.score }}</b><span>当前覆盖度</span></a>
+    {% else %}
+    <a class="btn" href="/projects/{{ project.id }}/coverage">建立覆盖度快照</a>
+    {% endif %}
+  </div>
+  <div class="continue-work-grid">
+    {% for card in continue_cards %}
+    <a class="continue-work-card {{ card.kind }}" href="{{ card.url }}">
+      <span class="continue-work-count">{{ card.count }}</span>
+      <div><b>{{ card.title }}</b><p>{{ card.detail }}</p></div>
+      <span class="arrow">→</span>
+    </a>
+    {% else %}
+    <div class="empty-state-card">
+      <b>当前没有明显的未完成工作</b>
+      <p>可以查看测试覆盖度，或者从资产智能中选择下一步。</p>
+      <div class="action-row"><a class="btn primary" href="/projects/{{ project.id }}/coverage">查看测试覆盖度</a><a class="btn" href="/projects/{{ project.id }}/asset-intelligence">打开资产智能</a></div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="attention-strip">
+  <a href="/projects/{{ project.id }}/findings"><span>待确认漏洞</span><b>{{ candidate_count }}</b></a>
+  <a href="/projects/{{ project.id }}/remediation"><span>复测就绪</span><b>{{ retest_ready_count }}</b></a>
+  <a href="/projects/{{ project.id }}/authorization-matrix"><span>权限覆盖缺口</span><b>{{ auth_gap_count }}</b></a>
+  <a href="/projects/{{ project.id }}/requests"><span>未保存请求草稿</span><b>{{ request_draft_count }}</b></a>
+  <a href="/projects/{{ project.id }}/jobs"><span>活动任务</span><b>{{ stats.active_jobs|default(0) }}</b></a>
+</section>
+
+<details class="advanced-overview"><summary>专业分析与技能设置 <span>按需展开</span></summary><section class="skill-overview-strip">
+  <div>
+    <span class="mini-label">已启用技能</span>
+    <b>{{ stats.skills_enabled|default(0) }}</b>
+    <small>控制当前测试工作流</small>
+  </div>
+  <div>
+    <span class="mini-label">技能运行</span>
+    <b>{{ stats.skill_runs|default(0) }}</b>
+    <small>可审计执行记录</small>
+  </div>
+  <div class="skill-overview-copy">
+    <b>技能驱动编排</b>
+    <small>只有已启用内置技能映射的 Capability 才能自动执行；导入 Skill 仍保持仅知识模式。</small>
+  </div>
+  <a class="btn primary" href="/projects/{{ project.id }}/skills">选择技能</a>
+</section>
+<div class="active-skill-chips">
+  <span class="mini-label">当前工作流</span>
+  {% for skill in enabled_skills[:8] %}
+  <a href="/projects/{{ project.id }}/skills/{{ skill.id }}">{{ skill.name }}</a>
+  {% endfor %}
+  {% if enabled_skills|length > 8 %}<span>+{{ enabled_skills|length - 8 }} 项</span>{% endif %}
+</div>
+
+<section class="intelligence-overview-strip">
+  <div>
+    <span class="mini-label">智能分析层</span>
+    <b>知识图谱 → 测试记忆 → 专家审阅</b>
+    <small>结构化事实和历史结论用于减少重复工作，但不会替代确定性执行和人工确认。</small>
+  </div>
+  <div><span>知识节点</span><b>{{ stats.knowledge_nodes|default(0) }}</b></div>
+  <div><span>测试记忆</span><b>{{ stats.assessment_memories|default(0) }}</b></div>
+  <div><span>专家运行</span><b>{{ stats.specialist_runs|default(0) }}</b></div>
+  <div class="action-row">
+    <a class="btn" href="/projects/{{ project.id }}/knowledge-graph">安全知识图谱</a>
+    <a class="btn" href="/projects/{{ project.id }}/memory">测试记忆</a>
+    <a class="btn" href="/projects/{{ project.id }}/coverage">测试覆盖度</a>
+    <a class="btn" href="/projects/{{ project.id }}/copilot">AI 安全助手</a>
+    <a class="btn primary" href="/projects/{{ project.id }}/agent-team">AI 专家团队</a>
+  </div>
+</section>
+
+</details>
+<section class="personal-next-steps panel"><div class="panel-title"><div><h2>下一步最值得做什么</h2><small>根据当前接口、请求、身份、权限验证、漏洞与复测状态生成</small></div><form method="post" action="/projects/{{ project.id }}/next-steps/ai"><button class="btn primary" type="submit">让 AI 深度排序</button></form></div><div class="next-step-grid">{% for step in next_steps %}<a class="next-step-card" href="{{ step.url }}"><span class="next-step-priority">P{{ step.priority }}</span><div><b>{{ step.title }}</b><p>{{ step.reason }}</p></div><span class="arrow">→</span></a>{% else %}<div class="empty small">当前基础覆盖较完整，可以查看测试覆盖度 或让 AI 基于现有证据继续排序。</div>{% endfor %}</div></section>
+
+<div class="workspace-grid">
+  <section class="panel terminal-panel">
+    <div class="panel-title">
+      <div><h2>扫描与资产探测</h2><small>安全信息收集 + Web 发现 + 证据分析</small></div>
+      <span class="policy-tag">LOW_RISK_VALIDATE</span>
+    </div>
+    <p>内置安全评估与资产探测统一在扫描中心进行，可选择阶段、查看进度并暂停恢复。</p><a class="btn primary" href="/projects/{{ project.id }}/scan-center">进入扫描中心</a>
+
+  </section>
+
+  <aside class="panel agent-snapshot">
+    <div class="panel-title">
+      <div><h2>AI 任务控制</h2><small>最近一次运行</small></div>
+      <a href="/projects/{{ project.id }}/agent">打开 →</a>
+    </div>
+    {% if agent_run %}
+    <div class="agent-status-line"><span class="run-state {{ agent_run.status }}">{{ agent_run.status }}</span><b>{{ agent_run.stage }}</b></div>
+    <div class="mission">{{ agent_run.mission }}</div>
+    <div class="mini-timeline" id="agentMiniTimeline">
+      {% for e in agent_events[:6] %}
+      <div><span class="event-dot {{ e.status }}"></span><p><b>{{ e.title }}</b><small>{{ e.detail }}</small></p></div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty small">暂无 AI 任务。</div>
+    {% endif %}
+  </aside>
+</div>
+
+<section class="validation-strip authz-overview-strip">
+  <div><span class="mini-label">请求</span><b>{{ stats.stored_requests|default(0) }}</b><small>已保存请求</small></div>
+  <div><span class="mini-label">身份</span><b>{{ stats.identities|default(0) }}</b><small>加密身份上下文</small></div>
+  <div><span class="mini-label">重放</span><b>{{ stats.replays|default(0) }}</b><small>只读重放结果</small></div>
+  <div><span class="mini-label">权限案例</span><b>{{ stats.authorization_cases|default(0) }}</b><small>差异验证</small></div>
+  <div class="validation-actions"><a class="btn" href="/projects/{{ project.id }}/requests">请求工作台</a><a class="btn" href="/projects/{{ project.id }}/authorization">越权验证</a><a class="btn primary" href="/projects/{{ project.id }}/remediation">整改</a></div>
+</section>
+
+<div class="split two">
+  <section class="panel flush">
+    <div class="panel-title"><div><h2>漏洞发现</h2><small>最近的证据支撑结果</small></div><a href="/projects/{{ project.id }}/findings">查看全部</a></div>
+    <div class="activity-list">
+      {% for f in findings %}
+      <a class="activity-row filter-row" href="/findings/{{ f.id }}"><span class="severity {{ f.severity }}">{{ f.severity }}</span><div><b>{{ f.title }}</b><small>{{ f.target }}</small></div></a>
+      {% else %}<div class="empty small">暂无漏洞。</div>{% endfor %}
+    </div>
+  </section>
+
+  <section class="panel flush">
+    <div class="panel-title"><div><h2>工具活动</h2><small>最近的确定性执行记录</small></div><a href="/projects/{{ project.id }}/tasks">查看全部</a></div>
+    <div class="activity-list" id="liveTaskList">
+      {% for t in tasks %}
+      <div class="activity-row"><span class="run-state {{ t.status }}">{{ t.status }}</span><div><b>{{ t.action }}</b><small>{{ t.target }}</small></div></div>
+      {% else %}<div class="empty small">暂无工具运行。</div>{% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>window.PROJECT_ID={{ project.id }};window.ENABLE_PROJECT_POLLING=true;</script>
+{% endblock %}

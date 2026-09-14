@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} · 攻击面{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 攻击面{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div><div class="mini-label">资产发现</div><h1>攻击面</h1><p>主机 → 服务 → Web 资源 → JavaScript → 路由候选 → 指纹识别。</p><a class="row-action" href="/projects/{{ project.id }}/asset-intelligence">打开资产智能 / 预设 / 路由 / 批量任务 →</a></div>
+  <div><div class="chip-row">{% for tech in technologies %}<span class="tech-chip">{{ tech }}</span>{% endfor %}</div><div class="surface-fingerprint-strip">{% for fp in fingerprint_rows[:8] %}<a class="tech-chip" href="/projects/{{ project.id }}/asset-intelligence#fingerprints">{{ fp.product }} · {{ fp.confidence }}%</a>{% endfor %}</div></div>
+</div>
+
+<div class="metric-strip">
+  <div><span>主机</span><b>{{ stats.assets }}</b></div>
+  <div><span>服务</span><b>{{ stats.services }}</b></div>
+  <div><span>Web 资源</span><b>{{ stats.web_artifacts }}</b></div>
+  <div><span>接口</span><b>{{ stats.endpoints }}</b></div>
+  <div><span>路由候选</span><b>{{ stats.routes }}</b></div>
+</div>
+
+<div class="surface-layout">
+  <section class="tree-panel panel flush">
+    <div class="panel-title"><div><h2>资产树</h2><small>{{ asset_rows|length }} host(s)</small></div></div>
+    <div class="asset-tree">
+      {% for row in asset_rows %}
+      <details class="tree-host filter-row" open>
+        <summary><span class="tree-icon">H</span><b>{{ row.asset.target }}</b><small>{{ row.asset.kind }}</small></summary>
+        <div class="tree-children">
+          <details open>
+            <summary><span class="tree-icon svc">S</span>服务 <em>{{ row.services|length }}</em></summary>
+            {% for s in row.services %}
+            <button class="tree-leaf context-item" data-kind="service" data-title="{{ s.port }}/{{ s.protocol }} · {{ s.name }}" data-detail="{{ s.banner or 'No banner captured' }}"><span>{{ s.port }}/{{ s.protocol }}</span><small>{{ s.name }}</small></button>
+            {% endfor %}
+          </details>
+          <details open>
+            <summary><span class="tree-icon web">W</span>Web 资源 <em>{{ row.artifacts|selectattr('artifact_type','equalto','page')|list|length }}</em></summary>
+            {% for a in row.artifacts if a.artifact_type == 'page' %}
+            <button class="tree-leaf context-item" data-kind="page" data-title="{{ a.url|redact_url }}" data-detail="{{ a.status_code or '—' }} · {{ a.content_type }}"><span class="truncate">{{ a.url|redact_url }}</span><small>{{ a.status_code or '—' }}</small></button>
+            {% endfor %}
+          </details>
+          <details id="javascript" open>
+            <summary><span class="tree-icon js">JS</span>JavaScript <em>{{ row.artifacts|selectattr('artifact_type','equalto','javascript')|list|length }}</em></summary>
+            {% for a in row.artifacts if a.artifact_type in ['javascript','source_map_reference'] %}
+            <button class="tree-leaf context-item" data-kind="{{ a.artifact_type }}" data-title="{{ a.url|redact_url }}" data-detail="来源: {{ a.source_url|redact_url }}"><span class="truncate">{{ a.url|redact_url }}</span><small>{{ 'MAP' if a.artifact_type=='source_map_reference' else 'JS' }}</small></button>
+            {% endfor %}
+          </details>
+          <details open>
+            <summary><span class="tree-icon api">API</span>路由候选 <em>{{ row.routes|length }}</em></summary>
+            {% for r in row.routes %}
+            <button class="tree-leaf context-item" data-kind="route" data-title="{{ r.method }} {{ r.path }}" data-detail="置信度: {{ r.confidence }} · 来源: {{ r.source }}"><span class="method {{ r.method|lower }}">{{ r.method }}</span><span class="truncate">{{ r.path }}</span></button>
+            {% endfor %}
+          </details>
+        </div>
+      </details>
+      {% else %}
+      <div class="empty">暂无资产，请先启动授权安全评估。</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <aside class="context-panel panel">
+    <div class="mini-label">上下文详情</div>
+    <h2 id="contextTitle">选择对象</h2>
+    <div id="contextKind" class="context-kind">—</div>
+    <pre id="contextDetail">点击资产树中的子项，在这里查看详细信息。</pre>
+    <div class="context-help">此区域仅展示观察上下文；主动请求重放请使用请求工作台。</div>
+  </aside>
+</div>
+{% endblock %}

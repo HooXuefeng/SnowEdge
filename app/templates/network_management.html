@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}代理配置管理 · SnowEdge{% endblock %}
+{% block content %}
+<div class="page-title-row"><div><h1>代理配置管理</h1><p>切换、停用或删除旧配置。使用中的代理必须先切换，避免意外直连。</p></div><a class="btn" href="/projects/{{ project.id }}/scan-center">返回扫描中心</a></div>
+{% if message %}<p class="notice" role="status">{{ message }}</p>{% endif %}
+{% for route in routes %}<section class="panel scan-panel"><h2>{{ route.name }} · {{ '已启用' if route.enabled else '已停用' }}</h2><p>{{ route.route_type }} · {{ route.host or '直连' }}{% if route.port %}:{{ route.port }}{% endif %}</p><p>使用位置：{{ refs[route.id]|join('、') or '未使用' }} · 最近使用：{{ usage[route.id].get('last_used','暂无记录') }} {{ usage[route.id].get('last_result','') }}</p>
+<form method="post" action="/projects/{{ project.id }}/network-routes/{{ route.id }}/manage"><div class="button-row">{% if route.enabled %}<button class="btn" name="action" value="select">用于当前项目</button><button class="btn" name="action" value="disable">停用</button>{% else %}<button class="btn" name="action" value="enable">启用</button>{% endif %}<button class="btn" name="action" value="delete">删除配置与密码</button></div><details><summary>测试连接</summary><p>仅向当前项目授权范围内的地址发送一次 HEAD 请求，不跟随重定向。</p><label>测试地址<input type="url" name="target" placeholder="https://授权域名/"></label><button class="btn" name="action" value="test">测试连接</button></details></form></section>{% else %}<section class="panel">暂无配置，请在扫描中心添加代理。</section>{% endfor %}
+<link rel="stylesheet" href="/static/scan-center.css">
+{% endblock %}

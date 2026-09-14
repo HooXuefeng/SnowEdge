@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} · 证据中心{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 证据中心{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div><div class="mini-label">EVIDENCE CHAIN OF CUSTODY</div><h1>证据中心</h1><p>每条 Evidence 自动计算内容 SHA-256 和完整性摘要，并关联 Finding / Task / Job 等来源。</p></div>
+  <span class="scope-badge">{{ evidence_summary.integrity_ready }}/{{ evidence_summary.count }} 已建立完整性摘要</span>
+</div>
+
+<section class="metric-strip four">
+  <div><span>证据总数</span><b>{{ evidence_summary.count }}</b></div>
+  <div><span>SHA256 就绪</span><b>{{ evidence_summary.hashed }}</b></div>
+  <div><span>完整性摘要</span><b>{{ evidence_summary.integrity_ready }}</b></div>
+  <div><span>来源关系</span><b>{{ evidence_summary.links }}</b></div>
+</section>
+
+<div class="evidence-layout">
+  <section class="panel flush">
+    <div class="dense-table">
+      <div class="dense-head grid-evidence-v13"><span>ID</span><span>类型</span><span>关联对象</span><span>Content SHA256</span><span>完整性</span><span>时间</span></div>
+      {% for e in evidence_rows %}
+      <button class="dense-row grid-evidence-v13 evidence-select filter-row" id="evidence-{{ e.id }}"
+        data-id="{{ e.id }}"
+        data-kind="{{ e.kind }}"
+        data-content="{{ e.content|e }}">
+        <span>#{{ e.id }}</span>
+        <span class="source-tag">{{ e.kind }}</span>
+        <span>{% if e.finding_id %}漏洞 #{{ e.finding_id }}{% elif e.task_id %}Task #{{ e.task_id }}{% elif e.job_id %}Job #{{ e.job_id }}{% else %}未关联{% endif %}</span>
+        <span class="mono hash-cell">{{ e.content_sha256[:14] if e.content_sha256 else '—' }}{% if e.content_sha256 %}…{% endif %}</span>
+        <span class="mono hash-cell">{{ e.integrity_sha256[:14] if e.integrity_sha256 else '—' }}{% if e.integrity_sha256 %}…{% endif %}</span>
+        <span>{{ e.captured_at.strftime('%m-%d %H:%M:%S') if e.captured_at else (e.created_at.strftime('%m-%d %H:%M:%S') if e.created_at else '—') }}</span>
+      </button>
+      {% else %}<div class="empty">暂无证据记录。</div>{% endfor %}
+    </div>
+  </section>
+  <aside class="panel evidence-preview">
+    <a class="btn" id="evidenceWorkflow" hidden>AI 研判与工具联动</a>
+    <div class="mini-label">RAW EVIDENCE</div>
+    <h2 id="evidenceTitle">选择一条记录</h2>
+    <p class="muted">列表中的 SHA-256 用于完整性校验；原始内容仍按项目权限查看。</p>
+    <pre id="evidenceContent">选择证据后将在此处显示内容。</pre>
+  </aside>
+</div>
+<script>document.querySelectorAll('.evidence-select').forEach(row=>row.addEventListener('click',()=>{const link=document.getElementById('evidenceWorkflow');link.href='/projects/{{ project.id }}/workflow/evidence/'+row.dataset.id;link.hidden=false;}));</script>
+{% endblock %}

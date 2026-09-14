@@ -1,0 +1,24 @@
+:root{color-scheme:light}input,select,textarea,button{font-family:inherit}input:not([type=checkbox]):not([type=radio]),select,textarea{background-color:#fff;color:#334155;border-color:#cbd5e1}input::placeholder,textarea::placeholder{color:#7c8aa0}input[type=checkbox],input[type=radio]{accent-color:#4f46e5}button:not(.primary),.btn:not(.primary){color:#475569;background-color:#fff;border-color:#dbe2ee}button:not(.primary):hover,.btn:not(.primary):hover{background-color:#eef2ff;border-color:#c7d2fe;color:#4338ca}pre,code,kbd{color:#334155;background-color:#f1f5f9;border-color:#dbe2ee}dialog,.modal,.modal-content,.drawer,.inspector,.inspector-panel,.advanced-overview,.command-box,.scope-badge,.tech-chip,.metric-strip,.dense-head,.request-inspector{background-color:#fff;color:#334155;border-color:#e2e8f0}.advanced-overview>summary{color:#475569}.scope-badge,.tech-chip,kbd{background-color:#f1f5f9}summary::marker{color:#64748b}button svg,a.btn svg{color:inherit}button svg[fill=black],a.btn svg[fill=black]{fill:currentColor}button svg[stroke=black],a.btn svg[stroke=black]{stroke:currentColor}.navigation-more summary{padding:14px 10px}.panel{border-radius:12px}input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid #818cf8;outline-offset:3px}.analysis-layout .btn.primary{color:#fff;background:#4f46e5;border-color:#4f46e5}
+
+body .continue-work-card .continue-work-count,body .next-step-priority{background:#eef2ff;color:#4338ca;border-color:#c7d2fe}body .continue-work-card.finding .continue-work-count{background:#fff1f2;color:#be123c;border-color:#fecdd3}body .continue-work-card.retest .continue-work-count{background:#fffbeb;color:#92400e;border-color:#fde68a}body .continue-work-card.job .continue-work-count{background:#eff6ff;color:#0369a1;border-color:#bae6fd}body .raw-label,body pre.request-v2-raw{background:#f5f7fc;color:#475569;border-color:#e2e8f0}.page-decoder .topbar{display:none}
+
+body .active-skill-chips>span:not(.mini-label){background:#eef2ff;border-color:#c7d2fe;color:#4338ca}.skip-link:not(:focus){visibility:hidden}@media(max-width:760px){body:not(.navigation-open) .sidebar{visibility:hidden;pointer-events:none}body.navigation-open .sidebar{visibility:visible;pointer-events:auto}.page-decoder .topbar{display:flex;background:#fff}.sidebar{box-shadow:8px 0 24px #33415515}}
+
+/* Shared guidance strips and identity choices use the light workspace palette. */
+body .knowledge-safety-banner,body .agent-team-safety{background:#f5f7ff;border:1px solid #dfe5f5;border-radius:12px;overflow:hidden;margin-bottom:20px}
+body .knowledge-safety-banner>div,body .agent-team-safety>div{padding:16px 18px;border-color:#dfe5f5;column-gap:10px;align-content:start}
+body .knowledge-safety-banner b,body .agent-team-safety b{font-size:14px;font-weight:600;color:#334155}
+body .knowledge-safety-banner small,body .agent-team-safety small{font-size:13px;line-height:1.6;color:#64748b;margin-top:5px}
+body .knowledge-safety-banner .status-dot,body .agent-team-safety .status-dot{margin-top:7px;background:#818cf8}
+body .auth-matrix-identities{gap:12px}
+body .auth-matrix-identities label{background:#fff;border:1px solid #dbe2ee;border-radius:10px;padding:12px 16px;gap:4px 10px;min-width:150px;font-size:14px;color:#475569;margin:0}
+body .auth-matrix-identities label small{font-size:12px;color:#64748b}
+body .auth-matrix-identities label:hover{background:#f8f9ff;border-color:#a5b4fc}
+body .auth-matrix-identities label:has(input:checked){background:#eef2ff;border-color:#818cf8;color:#4338ca}
+body .auth-matrix-identities label:focus-within{outline:2px solid #a5b4fc;outline-offset:2px}
+body .auth-matrix-identities input{width:16px;height:16px;margin:0;accent-color:#4f46e5}
+@media(max-width:800px){body .knowledge-safety-banner>div:last-child,body .agent-team-safety>div:last-child{border-bottom:0}}
+
+body .auth-matrix-table th{background:#f1f5fb;color:#475569;font-size:13px;font-weight:600}body .auth-matrix-table th,body .auth-matrix-table td{border-color:#e2e8f0}body .auth-matrix-table td:first-child b{font-size:14px}body .auth-matrix-table td:first-child small,body .auth-matrix-empty{font-size:12px;color:#64748b}
+
+body #contextDetail{background:#f5f7fb;color:#475569;border:1px solid #e2e8f0;border-radius:9px;padding:14px;font-size:13px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}

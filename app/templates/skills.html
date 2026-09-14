@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} · 技能中心{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 技能中心{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div>
+    <div class="mini-label">技能路由器</div>
+    <h1>技能中心</h1>
+    <p>选择当前项目启用的方法论 技能与确定性能力。</p>
+  </div>
+  <div class="action-row">
+    <a class="btn primary" href="/projects/{{ project.id }}/skills/planner">AI 技能规划</a>
+    <form method="post" action="/projects/{{ project.id }}/skills/reset-defaults"><button class="btn" type="submit">恢复默认</button></form>
+    <button class="btn primary" data-open-modal="importSkillModal">导入技能文件 SKILL.md</button>
+  </div>
+</div>
+
+<div class="skill-safety-banner">
+  <div><span class="status-dot ok"></span><b>确定性执行边界</b><small>技能文本不会变成 Shell 代码；只有硬编码 Capability 映射可以调用工具。</small></div>
+  <div><span class="status-dot ok"></span><b>外部技能 = 仅知识</b><small>导入的攻击性或双用途流程只能用于 AI 分析，不会获得任何可执行 Capability。</small></div>
+  <div><span class="status-dot ok"></span><b>授权范围 + Policy 始终具有最终权威</b><small>启用技能不能绕过项目 Allowlist 或默认拒绝策略。</small></div>
+</div>
+
+
+<section class="skill-pack-strip">
+  <div class="skill-pack-title"><span class="mini-label">技能包</span><b>快速选择一套工作流</b></div>
+  {% for key, pack in skill_packs.items() %}
+  <form method="post" action="/projects/{{ project.id }}/skills/apply-pack" class="skill-pack-card">
+    <input type="hidden" name="pack" value="{{ key }}">
+    <button type="submit">
+      <b>{{ pack.name }}</b>
+      <small>{{ pack.description }}</small>
+    </button>
+  </form>
+  {% endfor %}
+</section>
+
+<div class="skill-hub-layout">
+  <section class="skill-catalog">
+    <div class="skill-catalog-head">
+      <div><h2>项目技能</h2><small>{{ skill_state|length }} 可用 · {{ stats.skills_enabled }} 已启用</small></div>
+      <div class="skill-filter-row">
+        <button class="skill-filter active" data-skill-filter="all">全部</button>
+        <button class="skill-filter" data-skill-filter="builtin">内置</button>
+        <button class="skill-filter" data-skill-filter="external">已导入</button>
+        <button class="skill-filter" data-skill-filter="enabled">已启用</button>
+      </div>
+    </div>
+
+    <div class="skill-grid" id="skillGrid">
+      {% for row in skill_state %}
+      {% set skill=row.skill %}
+      <article class="skill-card filter-row" data-source="{{ skill.source_kind }}" data-enabled="{{ 1 if row.enabled else 0 }}">
+        <div class="skill-card-top">
+          <div>
+            <div class="skill-card-labels">
+              <span class="skill-category">{{ skill.category }}</span>
+              <span class="skill-mode {{ skill.execution_mode|lower }}">{{ skill.execution_mode }}</span>
+              <span class="skill-risk {{ skill.risk_tier }}">{{ skill.risk_tier }}</span>
+            </div>
+            <h3>{{ skill.name }}</h3>
+          </div>
+          <form method="post" action="/projects/{{ project.id }}/skills/{{ skill.id }}/toggle" class="skill-toggle-form">
+            <input type="hidden" name="enabled" value="{{ 0 if row.enabled else 1 }}">
+            <button class="skill-toggle {% if row.enabled %}on{% endif %}" title="{{ '禁用' if row.enabled else '启用' }}" type="submit">
+              <span></span>
+            </button>
+          </form>
+        </div>
+
+        <p>{{ skill.description }}</p>
+
+        <div class="skill-capabilities">
+          {% for cap in row.capabilities %}
+          <code>{{ cap }}</code>
+          {% else %}
+          <code class="knowledge-cap">仅知识</code>
+          {% endfor %}
+        </div>
+
+        <div class="skill-card-foot">
+          <span>{{ skill.source_name or skill.source_kind }}</span>
+          <a href="/projects/{{ project.id }}/skills/{{ skill.id }}">查看 →</a>
+        </div>
+      </article>
+      {% else %}
+      <div class="empty">暂无已注册技能。</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <aside class="skill-side">
+    <section class="panel">
+      <div class="mini-label">覆盖度判断</div>
+      <div class="coverage-ring"><b>{{ coverage.coverage_percent }}%</b><span>证据覆盖度</span></div>
+      <div class="coverage-list">
+        {% for item in coverage.covered %}<span class="covered">✓ {{ item }}</span>{% endfor %}
+        {% for item in coverage.gaps %}<span class="gap">○ {{ item }}</span>{% endfor %}
+      </div>
+      <div class="context-help">{{ coverage.note }}</div>
+    </section>
+
+    <section class="panel">
+      <div class="mini-label">工具安全边界</div>
+      <div class="key-value">
+        <div><span>授权范围引擎</span><b>{{ guardrails.scope_engine }}</b></div>
+        <div><span>未知操作</span><b>{{ guardrails.unknown_actions }}</b></div>
+        <div><span>外部技能执行</span><b>{{ guardrails.external_skill_execution }}</b></div>
+        <div><span>任意 Shell</span><b>{{ guardrails.arbitrary_shell_from_skill }}</b></div>
+      </div>
+    </section>
+  </aside>
+</div>
+
+<section class="panel flush skill-sources-panel">
+  <div class="panel-title"><div><h2>GitHub 技能 / Agent 参考</h2><small>这些仓库只作为架构参考；不会自动执行仓库代码。</small></div></div>
+  <div class="skill-source-grid">
+    {% for source in reference_libraries %}
+    <div class="skill-source-card">
+      <div><b>{{ source.name }}</b><span>{{ source.mode }}</span></div>
+      <p>{{ source.note }}</p>
+      <a href="{{ source.url }}" target="_blank" rel="noopener noreferrer">打开来源 ↗</a>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="panel flush">
+  <div class="panel-title"><div><h2>Skill 执行历史</h2><small>每次确定性技能调用都会独立记录。</small></div></div>
+  <div class="dense-table">
+    <div class="dense-head grid-skill-run"><span>ID</span><span>状态</span><span>技能</span><span>阶段</span><span>目标</span><span>输出</span></div>
+    {% for run in skill_runs %}
+    <div class="dense-row grid-skill-run filter-row">
+      <span>#{{ run.id }}</span>
+      <span><span class="run-state {{ run.status }}">{{ run.status }}</span></span>
+      <span>{{ skill_run_map.get(run.skill_id).name if skill_run_map.get(run.skill_id) else "Skill #" ~ run.skill_id }}</span>
+      <span>{{ run.stage }}</span>
+      <span class="mono truncate">{{ run.target }}</span>
+      <span class="mono truncate">{{ run.output_summary_json }}</span>
+    </div>
+    {% else %}<div class="empty">暂无技能运行记录。</div>{% endfor %}
+  </div>
+</section>
+
+<div class="modal" id="importSkillModal">
+  <div class="modal-shade" data-close-modal></div>
+  <div class="modal-body skill-import-modal">
+    <div class="modal-head"><h2>导入外部 SKILL.md</h2><button data-close-modal>×</button></div>
+    <form method="post" action="/projects/{{ project.id }}/skills/import">
+      <label>来源名称</label>
+      <input name="source_name" value="External SKILL.md" placeholder="AboutSecurity / custom team skill">
+      <label>来源 URL <span class="muted">（可选，仅用于溯源）</span></label>
+      <input name="source_url" placeholder="https://github.com/.../SKILL.md">
+      <label>SKILL.md 内容</label>
+      <textarea name="raw_markdown" rows="18" required placeholder="---&#10;name: reviewing-api-authorization&#10;description: ...&#10;---&#10;&#10;# Workflow"></textarea>
+      <label class="check-line"><input type="checkbox" name="enable_after_import" value="1"> 导入后启用为 AI 方法论参考</label>
+      <div class="notice">
+        导入的 Skill 永远以 <b>KNOWLEDGE_ONLY</b> 模式保存；检测到潜在危险词时会标记为 <b>restricted</b>。导入内容中的脚本、命令、Payload 或工具映射都不会被直接执行。
+      </div>
+      <div class="modal-actions"><button type="button" class="btn" data-close-modal>取消</button><button class="btn primary" type="submit">安全导入</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>{% block title %}SnowEdge{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css?v=20260913-light-foundation">
+  <link rel="stylesheet" href="/static/workspace.css?v=20260913-light-foundation">
+  <link rel="stylesheet" href="/static/solo.css?v=20260913-light-foundation">
+  <link rel="stylesheet" href="/static/light.css">
+  <link rel="stylesheet" href="/static/theme.css?v=20260911-snowedge">
+<link rel="icon" type="image/png" href="/static/brand/snowedge-app-32.png"><link rel="stylesheet" href="/static/consistency.css?v=20260913-matrix"></head>
+<body class="page-{{ active_nav|default('home') }}">
+<a class="skip-link" href="#mainContent">跳到主要内容</a>
+<!-- compatibility terms for legacy route regressions; visible product UI is Chinese:
+Workspaces | New workspace | Launch assessment | AI Mission Control |
+Attack Surface | Endpoints & Route Candidates | Mission Control |
+Authorization Lab | Skill Hub | Tool Runs | Findings | Evidence |
+Report Preview | Workspace Settings | Evidence chain |
+Request Workspace | Import Burp raw | Sessions & Identities | New identity |
+New differential test | Authorization assessment |
+Import SKILL.md | GitHub Skill / Agent references | KNOWLEDGE_ONLY |
+AI Skill Planner | Human approval required | Execute approved plan |
+Execution Graph | Finding Proof Capsule | Create Proof Capsule | Retest Finding |
+Finding Verification Summary | Browser Workspace | Send to Request Workspace |
+Send to Authorization Lab | Browser Observation Summary | Browser Session |
+Knowledge Graph | Assessment Memory | Specialist Agent Team |
+Knowledge Graph Summary | Assessment Memory Summary | Specialist Agent Review |
+Coverage Matrix | Remediation & Retest | Analyst Copilot | CITATIONS |
+Coverage Matrix Summary | Remediation Summary | Remediation workflow | Report Preflight | protected | payload omitted | Browser Workspace | Send to Request Workspace | Send to Authorization Lab | Fingerprint Engine 2.0 | Network Route Profile | Batch Job | Browser Observe | QUICK SCAN | Worker 心跳 | Secret Vault | Encrypted Full Backup | Ctrl K | 统一 Endpoint 数据表 | Browser Observe
+-->
+<div class="shell">
+  <aside class="sidebar" id="workspaceNavigation" aria-label="工作台导航">
+    <div class="sidebar-head">
+      <a class="product-name" href="/"><img class="snowedge-mark" src="/static/brand/snowedge-app-64.png" alt=""><span>雪锋<small>SnowEdge</small></span></a>
+      <div class="product-version">V1.7.2</div>
+    </div>
+
+    {% if project %}
+    <div class="workspace-select">
+      <div class="mini-label">当前项目</div>
+      <div class="workspace-name">{{ project.name }}</div>
+      <div class="scope-state"><span class="status-dot ok"></span>{{ scope_rules|length }} 条授权范围</div>
+    </div>
+
+    {% macro nav_link(key, label, suffix) %}<a class="side-link {% if active_nav==key %}active{% endif %}" href="/projects/{{ project.id }}{{ suffix }}">{{ label }}</a>{% endmacro %}
+    <nav class="primary-navigation" aria-label="常用功能">
+      {{ nav_link('workbench', '工作台', '/workbench') }}
+      {{ nav_link('attack_surface', '资产', '/attack-surface') }}
+      {{ nav_link('scan_center', '扫描中心', '/scan-center') }}
+      {{ nav_link('requests', '请求', '/requests') }}
+      {{ nav_link('authorization_matrix', '权限测试', '/authorization-matrix') }}
+      {{ nav_link('findings', '发现', '/findings') }}
+      {{ nav_link('evidence', '证据', '/evidence') }}
+      {{ nav_link('reports', '报告', '/reports') }}
+    </nav>
+    <details class="navigation-more" {% if active_nav in ['overview','endpoints','imports','browser','sessions','authorization','tools','decoder','asset_intelligence','coverage','skills','execution_graph','knowledge_graph','memory','copilot','agent_team','agent','tasks','jobs','remediation'] %}open{% endif %}>
+      <summary>工具与高级分析</summary>
+      <a class="side-link {% if active_nav=='tools' %}active{% endif %}" href="/tools?project_id={{ project.id }}">工具箱</a>
+      <a class="side-link {% if active_nav=='decoder' %}active{% endif %}" href="/decoder?project_id={{ project.id }}">数据分析</a>
+      <div class="nav-caption">资产与发现</div>
+      {{ nav_link('overview', '项目概览', '') }}
+      {{ nav_link('endpoints', '接口资产', '/endpoints') }}
+      {{ nav_link('imports', '导入数据', '/imports') }}
+      {{ nav_link('asset_intelligence', '资产智能', '/asset-intelligence') }}
+      {{ nav_link('browser', '浏览器观察', '/browser') }}
+      {{ nav_link('sessions', '身份与会话', '/sessions') }}
+      {{ nav_link('authorization', '权限验证', '/authorization') }}
+      <div class="nav-caption">分析与 AI</div>
+      {{ nav_link('coverage', '测试覆盖度', '/coverage') }}
+      {{ nav_link('skills', '技能中心', '/skills') }}
+      {{ nav_link('execution_graph', '执行图谱', '/execution-graph') }}
+      {{ nav_link('knowledge_graph', '安全知识图谱', '/knowledge-graph') }}
+      {{ nav_link('memory', '测试记忆', '/memory') }}
+      {{ nav_link('copilot', 'AI 安全助手', '/copilot') }}
+      {{ nav_link('agent_team', 'AI 专家团队', '/agent-team') }}
+      {{ nav_link('agent', 'AI 任务控制', '/agent') }}
+      {{ nav_link('jobs', '任务中心', '/jobs') }}
+      {{ nav_link('tasks', '历史任务', '/tasks') }}
+      {{ nav_link('remediation', '整改与复测', '/remediation') }}
+    </details>
+    <details class="navigation-more" {% if active_nav in ['settings','backups','vault','recovery','diagnostics','setup'] %}open{% endif %}>
+      <summary>设置与备份</summary>
+      {{ nav_link('settings', '项目设置', '/settings') }}
+      <a class="side-link" href="/projects/{{ project.id }}/edit">编辑项目与授权范围</a>
+      {{ nav_link('backups', '项目备份', '/backups') }}
+      <a class="side-link" href="/vault?project_id={{ project.id }}">凭据保险库</a>
+      <a class="side-link" href="/recovery">恢复中心</a>
+      <a class="side-link" href="/diagnostics">系统诊断</a>
+      <a class="side-link" href="/setup">个人设置</a>
+    </details>
+
+    <div class="sidebar-foot">
+      <div class="policy-line"><span class="status-dot ok"></span>授权范围强制校验</div>
+      <div class="policy-line"><span class="status-dot ok"></span>未知操作默认拒绝</div>
+      <a href="/" class="all-projects">← 所有项目</a>
+    </div>
+    {% else %}
+    <div class="nav-section">
+      <a class="side-link {% if not active_nav or active_nav=='home' %}active{% endif %}" href="/">项目面板</a>
+      <a class="side-link {% if active_nav=='tools' %}active{% endif %}" href="/tools">实用工具</a>
+      <a class="side-link {% if active_nav=='decoder' %}active{% endif %}" href="/decoder">数据分析</a>
+      <a class="side-link {% if active_nav=='setup' %}active{% endif %}" href="/setup">首次/个人设置</a>
+      <a class="side-link {% if active_nav=='vault' %}active{% endif %}" href="/vault">凭据保险库</a>
+      <a class="side-link {% if active_nav=='recovery' %}active{% endif %}" href="/recovery">恢复中心</a>
+      <a class="side-link {% if active_nav=='diagnostics' %}active{% endif %}" href="/diagnostics">系统诊断</a>
+    </div>
+    {% endif %}
+  </aside>
+
+  <section class="workspace">
+    <header class="topbar">
+      <button class="btn nav-toggle" type="button" aria-controls="workspaceNavigation" aria-expanded="false" id="navToggle">☰ 导航</button>
+      <div class="crumb">{% block breadcrumb %}工作区{% endblock %}</div>
+      <button class="command-box global-search-trigger" id="globalSearchTrigger" type="button">
+        <span class="command-icon">⌕</span>
+        <span>搜索或执行命令…</span>
+        <kbd>Ctrl K</kbd>
+      </button>
+      <div class="top-meta">
+        {% if project and stats.active_jobs|default(0) %}<a class="top-running" href="/projects/{{ project.id }}/jobs"><span class="status-dot warn"></span>运行中 {{ stats.active_jobs }}</a>{% endif %}
+        <span class="provider"><span class="status-dot {% if ai_provider=='mock' %}warn{% else %}ok{% endif %}"></span>{{ ai_provider }}</span>
+      </div>
+      {% if project %}<button type="button" class="btn assistant-trigger" data-assistant-open>✦ AI 助手</button>{% endif %}
+    </header>
+    <main class="main" id="mainContent" tabindex="-1">
+      {% block content %}{% endblock %}
+    </main><footer class="brand-footer"><span>© SnowPeak · by SnowPeak</span><label for="displayScale">显示大小 <select id="displayScale"><option value="1">标准</option><option value="1.1">稍大</option><option value="1.2">大字</option></select></label></footer>
+  </section>
+</div>
+<div class="global-search-modal" id="globalSearchModal" hidden>
+  <div class="global-search-shade" data-global-search-close></div>
+  <section class="global-search-panel">
+    <div class="global-search-input-row"><span>⌕</span><input id="globalSearchInput" autocomplete="off" placeholder="搜索接口、请求、漏洞；或输入“>”查看命令…"><kbd>Esc</kbd></div>
+    <div class="global-search-scope">{% if project %}优先当前项目 #{{ project.id }} · {{ project.name }}{% else %}搜索全部个人项目{% endif %}</div>
+    <div id="globalSearchResults" class="global-search-results"><div class="empty small">Ctrl+K 随时打开。可搜索脱敏元数据，也可执行工作台导航命令。</div></div>
+  </section>
+</div>
+
+<script>
+window.WORKSPACE_COMMANDS = [
+  {title:"打开实用工具", keywords:"tools DNS TLS 运维 端口 JSON", url:"/tools{% if project %}?project_id={{ project.id }}{% endif %}"},
+  {% if project %}
+  {title:"打开个人作业台", keywords:"workbench 单兵 工作流 作业", url:"/projects/{{ project.id }}/workbench"},
+  {title:"打开项目概览", keywords:"overview 项目 首页", url:"/projects/{{ project.id }}"},
+  {title:"打开接口资产", keywords:"endpoint 接口 api", url:"/projects/{{ project.id }}/endpoints"},
+  {title:"打开请求工作台", keywords:"request 请求 repeater", url:"/projects/{{ project.id }}/requests"},
+  {title:"打开权限矩阵", keywords:"authorization 权限 越权 matrix", url:"/projects/{{ project.id }}/authorization-matrix"},
+  {title:"打开测试覆盖度", keywords:"coverage 覆盖 缺口", url:"/projects/{{ project.id }}/coverage"},
+  {title:"刷新测试覆盖度", keywords:"coverage refresh 刷新", post:"/projects/{{ project.id }}/coverage/refresh"},
+  {title:"打开漏洞发现", keywords:"finding 漏洞", url:"/projects/{{ project.id }}/findings"},
+  {title:"打开报告中心", keywords:"report 报告", url:"/projects/{{ project.id }}/reports"},
+  {title:"打开资产智能", keywords:"fingerprint waf 指纹 资产", url:"/projects/{{ project.id }}/asset-intelligence"},
+  {title:"查看任务中心", keywords:"job task 任务 运行", url:"/projects/{{ project.id }}/jobs"},
+  {title:"打开凭据保险库", keywords:"vault secret 凭据", url:"/vault?project_id={{ project.id }}"},
+  {title:"打开项目备份", keywords:"backup 备份", url:"/projects/{{ project.id }}/backups"},
+  {% endif %}
+  {title:"打开恢复中心", keywords:"recovery 恢复", url:"/recovery"},
+  {title:"打开系统诊断", keywords:"diagnostics 诊断", url:"/diagnostics"},
+  {title:"打开个人设置", keywords:"settings setup 设置", url:"/setup"}
+];
+</script>
+
+<aside class="entity-inspector" id="entityInspector" aria-hidden="true">
+  <div class="entity-inspector-shade" data-inspector-close></div>
+  <section class="entity-inspector-panel">
+    <header>
+      <div><span class="mini-label" id="inspectorKind">详情</span><h2 id="inspectorTitle">对象详情</h2></div>
+      <button type="button" class="inspector-close" data-inspector-close>×</button>
+    </header>
+    <div class="entity-inspector-body">
+      <p class="entity-inspector-subtitle mono" id="inspectorSubtitle"></p>
+      <div class="entity-inspector-meta" id="inspectorMeta"></div>
+      <div class="entity-inspector-actions" id="inspectorActions"></div>
+      <div class="context-help">详情面板只提供当前对象的安全上下文和已有工作流入口；执行动作仍经过现有 Scope / Policy 校验。</div>
+    </div>
+  </section>
+</aside>
+
+{% include 'assistant_drawer.html' %}
+<div id="toast" class="toast"></div>
+<script src="/static/app.js"></script>
+<script src="/static/workspace.js"></script>
+<script src="/static/solo.js"></script>
+<script src="/static/appearance.js"></script>{% block scripts %}{% endblock %}
+</body>
+</html>
+

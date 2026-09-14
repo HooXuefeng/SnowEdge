@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}恢复中心 · SnowEdge{% endblock %}
+{% block breadcrumb %}个人工具 / 恢复中心{% endblock %}
+{% block content %}
+<div class="page-title-row compact"><div><div class="mini-label">崩溃与完整恢复</div><h1>恢复中心</h1><p>检查异常退出后遗留的安全任务、浏览器会话 和 请求草稿。只有既有安全任务 会被恢复，不会把未知操作升级成可执行动作。</p></div><div class="action-row"><form method="post" action="/recovery/resume"><button class="btn primary">恢复安全任务</button></form><form method="post" action="/recovery/dismiss"><button class="btn">清理不可恢复状态</button></form></div></div>
+{% if request.query_params.get('restore_staged') %}<div class="personal-onboarding-banner"><div><b>完整恢复已排队</b><small>请关闭 Workspace，然后重新双击 SnowEdge.exe。EXE 会在 Web / 工作进程 启动之前应用加密恢复。</small></div></div>{% endif %}
+<section class="metric-strip four"><div><span>活动任务</span><b>{{ recovery.jobs|length }}</b></div><div><span>浏览器会话</span><b>{{ recovery.browsers|length }}</b></div><div><span>异常任务</span><b>{{ recovery.tasks|length }}</b></div><div><span>加密草稿</span><b>{{ recovery.drafts|length }}</b></div></section>
+<div class="recovery-grid">
+<section class="panel"><div class="panel-title"><div><h2>持久化任务</h2><small>恢复排队、重试等待和孤儿任务</small></div></div>{% for j in recovery.jobs %}<div class="recovery-row"><span class="run-state {{ j.status }}">{{ j.status }}</span><div><b>#{{ j.id }} · {{ j.kind }}</b><small>{{ j.target|redact_url }}</small></div></div>{% else %}<div class="empty small">无待恢复任务。</div>{% endfor %}</section>
+<section class="panel"><div class="panel-title"><div><h2>浏览器 / 任务</h2><small>异常退出时未正常收尾</small></div></div>{% for b in recovery.browsers %}<div class="recovery-row"><span class="run-state {{ b.status }}">{{ b.status }}</span><div><b>浏览器 #{{ b.id }}</b><small>{{ b.target_url|redact_url }}</small></div></div>{% endfor %}{% for t in recovery.tasks %}<div class="recovery-row"><span class="run-state {{ t.status }}">{{ t.status }}</span><div><b>任务 #{{ t.id }} · {{ t.action }}</b><small>{{ t.target|redact_url }}</small></div></div>{% endfor %}{% if not recovery.browsers and not recovery.tasks %}<div class="empty small">没有异常 Browser/Task。</div>{% endif %}</section>
+<section class="panel"><div class="panel-title"><div><h2>Request Drafts</h2><small>草稿本身使用 APP_SECRET_KEY 加密</small></div></div>{% for d in recovery.drafts %}<a class="recovery-row" href="/projects/{{ d.project_id }}/requests?selected={{ d.entity_id }}"><span class="run-state done">draft</span><div><b>Request #{{ d.entity_id }}</b><small>{{ d.updated_at.strftime('%Y-%m-%d %H:%M:%S') if d.updated_at else '' }}</small></div></a>{% else %}<div class="empty small">暂无未保存草稿。</div>{% endfor %}</section>
+</div>
+{% endblock %}

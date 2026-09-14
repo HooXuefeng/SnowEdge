@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}安全知识图谱 · {{ project.name }}{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 安全知识图谱{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div>
+    <div class="mini-label">STRUCTURED ASSESSMENT KNOWLEDGE</div>
+    <h1>安全知识图谱</h1>
+    <p>关联资产、服务、接口、浏览器观察、请求、身份、权限案例、漏洞、验证证据与执行历史。</p>
+  </div>
+  <form method="post" action="/projects/{{ project.id }}/knowledge-graph/refresh">
+    <button class="btn primary" type="submit">重建图谱</button>
+  </form>
+</div>
+
+<div class="knowledge-safety-banner">
+  <div><span class="status-dot ok"></span><b>Redacted graph</b><small>Identity secrets, request bodies and raw 证据 content are not copied into graph nodes.</small></div>
+  <div><span class="status-dot ok"></span><b>Deterministic relations</b><small>Edges come from database relationships, not model guesses.</small></div>
+  <div><span class="status-dot ok"></span><b>Traceable entities</b><small>Every node keeps its original entity type and ID.</small></div>
+</div>
+
+<section class="metric-strip six">
+  <div><span>NODES</span><b>{{ graph_summary.nodes }}</b></div>
+  <div><span>EDGES</span><b>{{ graph_summary.edges }}</b></div>
+  <div><span>FINDINGS</span><b>{{ graph_summary.finding_nodes }}</b></div>
+  <div><span>EVIDENCE</span><b>{{ graph_summary.evidence_nodes }}</b></div>
+  <div><span>NODE TYPES</span><b>{{ graph_summary.node_counts|length }}</b></div>
+  <div><span>RELATIONS</span><b>{{ graph_summary.relation_counts|length }}</b></div>
+</section>
+
+<div class="kg-layout">
+  <section class="panel flush kg-canvas-panel">
+    <div class="panel-title">
+      <div><h2>关系图谱</h2><small>Click a node to inspect its deterministic neighborhood.</small></div>
+      {% if graph.truncated %}<span class="source-tag">VIEW TRUNCATED</span>{% endif %}
+    </div>
+    <div id="knowledgeGraphCanvas" class="kg-canvas"></div>
+  </section>
+
+  <aside class="kg-inspector">
+    {% if selected_graph_node %}
+    <section class="panel">
+      <div class="mini-label">SELECTED NODE</div>
+      <div class="kg-selected-head">
+        <span class="kg-node-type">{{ selected_graph_node.node.type }}</span>
+        <b>{{ selected_graph_node.node.label }}</b>
+      </div>
+      <code>{{ selected_graph_node.node.key }}</code>
+      <pre class="kg-json">{{ selected_graph_node.node.summary|tojson(indent=2) }}</pre>
+    </section>
+
+    <section class="panel flush">
+      <div class="panel-title"><div><h2>关联邻域</h2><small>{{ selected_graph_node.relations|length }} relation(s)</small></div></div>
+      <div class="kg-neighbors">
+        {% for rel in selected_graph_node.relations %}
+        <a href="/projects/{{ project.id }}/knowledge-graph?selected={{ rel.other.id if rel.other else '' }}">
+          <span class="kg-relation">{{ rel.direction }} · {{ rel.relation }}</span>
+          <div><b>{{ rel.other.label if rel.other else 'Missing node' }}</b><small>{{ rel.other.type if rel.other else '' }}</small></div>
+        </a>
+        {% else %}<div class="empty small">No direct relations.</div>{% endfor %}
+      </div>
+    </section>
+    {% else %}
+    <section class="panel">
+      <div class="mini-label">GRAPH INSPECTOR</div>
+      <div class="empty small">Select a graph node to view redacted metadata and direct relations.</div>
+    </section>
+    {% endif %}
+  </aside>
+</div>
+
+<div class="split two kg-summary-row">
+  <section class="panel flush">
+    <div class="panel-title"><div><h2>节点清单</h2><small>Materialized entity types</small></div></div>
+    <div class="kg-count-list">
+      {% for node_type, count in node_types %}
+      <div><span>{{ node_type }}</span><b>{{ count }}</b></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel flush">
+    <div class="panel-title"><div><h2>主要关系</h2><small>Deterministic edge types</small></div></div>
+    <div class="kg-count-list">
+      {% for relation, count in relation_types %}
+      <div><span>{{ relation }}</span><b>{{ count }}</b></div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+window.KNOWLEDGE_GRAPH_DATA = {{ graph|tojson }};
+window.KNOWLEDGE_GRAPH_PROJECT_ID = {{ project.id }};
+</script>
+{% endblock %}

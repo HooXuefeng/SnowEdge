@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}报告中心 · SnowEdge{% endblock %}
+{% block content %}
+<div class="page-title-row"><div><h1>报告中心</h1><p>核对项目范围与证据，保存交付版本，再预览和导出正式文件。</p></div><a class="btn" href="/projects/{{ project.id }}/edit">编辑项目概况</a></div>
+{% if error %}<p class="notice" role="alert">{{ error }}</p>{% endif %}
+<section class="panel report-editor"><h2>{{ project.name }}</h2><p>客户：{{ project.client_name or '未填写' }} · 测试时间：{{ project.start_date or '未填写' }} — {{ project.end_date or '未填写' }}</p><p>授权范围：{{ project.scope_text }}</p><p>已登记资产 {{ coverage.assets }} · 已回放接口 {{ coverage.tested_endpoints }}/{{ coverage.endpoints }} · 身份 {{ coverage.identities }} · 完成权限场景 {{ coverage.permission_completed }}/{{ coverage.permission_scenarios }}</p></section>
+<form method="post" action="/projects/{{ project.id }}/reports/delivery" class="panel report-editor">
+<h2>编制报告</h2><p>标准与客户版保留完整技术章节；简版省略 HTTP 和证据正文；复测版突出整改结论；扫描版标明自动探测与人工确认的区别。</p><div class="report-grid">
+<label>报告模板<select name="template">{% for k,v in report_templates.items() %}<option value="{{ k }}" {% if config.get('template','client')==k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+<label>交付阶段<select name="stage">{% for k,v in stages.items() %}<option value="{{ k }}" {% if config.get('stage','initial')==k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+<label>报告版本<input name="version" value="{{ config.get('version','1.0') }}" maxlength="80" required></label>
+
+{% for key,label in [('objectives','测试目标'),('method','测试方式'),('limitations','测试限制'),('modules','已测试功能模块'),('conclusion','总体风险结论（留空则依据统计生成）')] %}<label>{{ label }}<textarea name="{{ key }}" rows="2" maxlength="12000">{{ config.get(key,'') }}</textarea></label>{% endfor %}
+</div>
+<div class="action-row"><h2>漏洞列表与证据</h2><a class="btn" href="/projects/{{ project.id }}/findings/new">手工新建漏洞</a></div><p>当前有效候选：{% for k in ['critical','high','medium','low','info'] %}{{ k|severity_zh }} {{ risk_counts.get(k,0) }} 项{% if not loop.last %} · {% endif %}{% endfor %}。正式报告按下方选中项统计。</p><p>名称、等级和内容修改会同步到原 Finding。证据编排只影响后续报告，历史交付版本保持不变。</p>
+<div class="report-table-wrap"><table class="report-table"><thead><tr><th>纳入</th><th>漏洞</th><th>风险</th><th>确认 / 复测</th><th>操作</th></tr></thead><tbody>
+{% for f in findings %}<tr><td><input type="checkbox" name="finding_ids" value="{{ f.id }}" {% if f.finding_state!='false_positive' %}checked{% endif %} aria-label="选择漏洞 {{ f.id }}"></td><td>#{{ f.id }} {{ f.title }}</td><td>{{ f.severity|severity_zh }}</td><td>{{ f.finding_state|status_zh }} / {{ f.verification_state|status_zh }}</td><td><a href="/projects/{{ project.id }}/reports/findings/{{ f.id }}">编辑详情与 Evidence</a></td></tr>{% else %}<tr><td colspan="5">没有漏洞也可生成范围与覆盖报告；报告不会据此宣称目标安全。</td></tr>{% endfor %}</tbody></table></div>
+<div class="report-grid"><label>漏洞排序<select name="sort">{% for k,v in [('severity','按风险等级'),('manual','手动顺序'),('asset','按影响资产'),('type','按漏洞类型')] %}<option value="{{ k }}" {% if config.get('sort')==k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label><label>手动顺序（漏洞编号，逗号分隔）<input name="order" value="{{ config.get('order',[])|join(',') }}" placeholder="例如 12,8,15"></label></div>
+<label class="check"><input type="checkbox" name="include_images" value="yes" checked> 插入已选中的截图（请先检查图片中的客户隐私与凭据）</label>
+<p>保存后生成不可变的交付快照。缺失字段会明确显示，不会编造请求、响应或验证步骤。</p><button class="btn primary">生成交付版本并预览</button>
+</form>
+<section class="panel report-editor"><h2>交付版本</h2>{% for item in history %}<div class="report-history" id="snapshot-{{ item.id }}"><b>{{ item.created_at }} · {{ item.variant }} · V{{ item.version }} · {{ item.count }} 项</b>{% if item.warnings %}<details><summary>{{ item.warnings|length }} 项核对提示</summary><ul>{% for w in item.warnings %}<li>{{ w }}</li>{% endfor %}</ul></details>{% endif %}<div class="action-row">{% if item.modern %}<a class="btn primary" href="/projects/{{ project.id }}/reports/delivery/{{ item.id }}/preview">正式预览</a>{% endif %}{% for fmt in (['pdf','html','json','csv','docx'] if item.modern else ['html','md','docx']) %}<a class="btn" href="/projects/{{ project.id }}/reports/delivery/{{ item.id }}/{{ fmt }}">{{ fmt|upper }}</a>{% endfor %}</div><small>快照 SHA256：{{ item.sha256 }}</small></div>{% else %}<p>暂无交付版本。</p>{% endfor %}</section>
+<details class="panel report-editor"><summary>兼容导出与历史分析</summary><p>原有执行、浏览器观察、知识分析、闭环统计与 txb02 Word 导出仍可使用。</p><a class="btn" href="/projects/{{ project.id }}/reports?legacy=1">打开原分析报告与 txb02 Word</a></details>
+<link rel="stylesheet" href="/static/report-center.css">
+{% endblock %}

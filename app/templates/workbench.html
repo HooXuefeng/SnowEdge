@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}个人作业台 · {{ project.name }}{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 个人作业台{% endblock %}
+{% block content %}
+<div class="quiet-workbench">
+<div class="page-title-row"><div><h1>个人作业台</h1><p>{{ project.name }}</p></div><a class="btn" href="/projects/{{ project.id }}">项目概览</a></div>
+{% if request_drafts %}{% set draft = request_drafts[0] %}
+<a class="continue-line" href="/projects/{{ project.id }}/requests?selected={{ draft.entity_id }}"><span class="continue-dot"></span><div><small>上次未完成</small><b>继续编辑请求草稿</b></div><span>继续 →</span></a>
+{% elif next_steps %}{% set step = next_steps[0] %}
+<a class="continue-line" href="{{ step.url }}"><span class="continue-dot"></span><div><small>建议下一步</small><b>{{ step.title }}</b></div><span>打开 →</span></a>
+{% endif %}
+<section class="quiet-capabilities" aria-label="工作入口"><h2>开始工作</h2><div class="solo-stage-tabs" role="tablist" aria-label="测试阶段">{% for stage in stages %}<button type="button" role="tab" id="stageTab-{{ stage.id }}" aria-controls="stagePanel-{{ stage.id }}" aria-selected="{{ 'true' if loop.first else 'false' }}" tabindex="{{ '0' if loop.first else '-1' }}" data-stage="{{ stage.id }}">{{ stage.name }}</button>{% endfor %}</div>
+{% for stage in stages %}<div id="stagePanel-{{ stage.id }}" role="tabpanel" aria-labelledby="stageTab-{{ stage.id }}" {% if not loop.first %}hidden{% endif %}><div class="capability-grid">{% for name, description, suffix in stage['items'] %}<a href="/projects/{{ project.id }}{{ suffix }}"><b>{{ name }} <span>→</span></b><p>{{ description }}</p></a>{% endfor %}</div></div>{% endfor %}</section>
+<footer class="quiet-footer"><a href="/tools?project_id={{ project.id }}">打开工具箱 →</a>{% if stats.active_jobs %}<a href="/projects/{{ project.id }}/jobs">{{ stats.active_jobs }} 项任务处理中</a>{% else %}<a href="/projects/{{ project.id }}/jobs">任务记录</a>{% endif %}</footer>
+</div>
+{% endblock %}

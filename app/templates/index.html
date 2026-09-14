@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}项目面板 · SnowEdge{% endblock %}
+{% block breadcrumb %}项目面板{% endblock %}
+{% block content %}
+<div class="page-title-row">
+  <div>
+    <div class="mini-label">授权安全测试</div>
+    <h1>我的项目</h1>
+    <p>选择项目，继续工作。</p>
+  </div>
+  <button class="btn primary" data-open-modal="createProjectModal">新建项目</button>
+</div>
+
+{% if setup_required %}
+<div class="personal-onboarding-banner"><div><span class="mini-label">首次使用</span><b>建议先完成 1 分钟个人设置</b><small>配置默认项目模板、AI、浏览器/Nmap 路径和自动备份。</small></div><a class="btn primary" href="/setup">打开首次启动向导</a></div>
+{% endif %}
+
+
+<section class="panel flush" id="projectList">
+  <div class="panel-title">
+    <div><h2>项目列表</h2><small>支持限定范围项目与不限制目标项目</small></div>
+  </div>
+  {% if cards %}
+  <div class="simple-project-list">
+    {% for card in cards %}
+    <a href="/projects/{{ card.project.id }}/workbench"><div><b>{{ card.project.name }}</b><small>{{ card.stats.assets }} 项资产{% if card.project.scope_text.strip() == '*' %} · 不限制目标{% elif not card.project.scope_text.strip() %} · 未设置范围{% endif %}{% if card.stats.running_tasks %} · {{ card.stats.running_tasks }} 项任务运行中{% endif %}</small></div><span>打开 →</span></a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">暂无项目。点击“新建项目”开始。</div>
+  {% endif %}
+</section>
+
+<details class="quick-start-disclosure"><summary>快速创建项目并开始评估 <span>已有明确目标时使用</span></summary><section class="quick-scan-hero"><div class="quick-scan-copy"><span class="mini-label">快速开始</span><h2>输入一个已授权目标，直接开始</h2><p>自动创建 Scope、套用个人项目模板并进入现有安全扫描流程。仍然只自动执行只读/低风险能力，不进行爆破、对象枚举或破坏性操作。</p></div><form method="post" action="/quick-scan" class="quick-scan-form"><div class="quick-target"><span>target&gt;</span><input name="target" required placeholder="https://authorized.example.com"></div><select name="template_slug" class="select-control">{% for t in project_templates %}<option value="{{ t.slug }}" {% if personal_settings.default_template==t.slug %}selected{% endif %}>{{ t.name }}</option>{% endfor %}</select><input name="project_name" placeholder="项目名（可选）"><button class="btn primary" type="submit">快速开始</button></form></section></details>
+<div class="modal" id="createProjectModal">
+  <div class="modal-shade" data-close-modal></div>
+  <div class="modal-body">
+    <div class="modal-head"><h2>创建项目</h2><button data-close-modal>×</button></div>
+    <form method="post" action="/projects">
+      <label>项目名称</label>
+      <input name="name" required placeholder="内部 Web 安全测试">
+      <label>项目模板</label>
+<select name="template_slug" class="select-control">{% for t in project_templates %}<option value="{{ t.slug }}" {% if personal_settings.default_template==t.slug %}selected{% endif %}>{{ t.name }} · {{ t.description }}</option>{% endfor %}</select>
+<label>授权范围</label>
+      <textarea id="createProjectScope" name="scope" rows="8" required placeholder="https://example.com/app&#10;*.example.com&#10;192.0.2.0/24"></textarea>
+      <small>每行一项。可直接粘贴 URL，系统会自动提取域名；根域名与通配子域名需分别授权。</small>
+      <label class="check-row"><input id="skipProjectScope" name="skip_scope" type="checkbox" value="yes"> 不限制目标，允许扫描任意域名、IP 或 URL</label>
+      <div class="notice" id="createProjectScopeNotice">所有网络动作都会重新按这些授权范围校验，包括重定向和后续发现的 URL。</div>
+      <div class="modal-actions"><button type="button" class="btn" data-close-modal>取消</button><button class="btn primary">创建</button></div>
+    </form>
+  </div>
+</div>
+<script>
+(() => {
+  const skip = document.getElementById('skipProjectScope');
+  const scope = document.getElementById('createProjectScope');
+  const notice = document.getElementById('createProjectScopeNotice');
+  if (!skip || !scope || !notice) return;
+  const sync = () => {
+    scope.disabled = skip.checked;
+    scope.required = !skip.checked;
+    notice.textContent = skip.checked
+      ? '当前项目不会进行目标范围拦截。扫描中心仍保留单次目标数、端口数、超时和任务队列限制。'
+      : '所有网络动作都会重新按这些授权范围校验，包括重定向和后续发现的 URL。';
+  };
+  skip.addEventListener('change', sync);
+  sync();
+})();
+</script>
+{% endblock %}

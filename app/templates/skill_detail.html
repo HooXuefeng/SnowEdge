@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ skill.name }} · 技能中心{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 技能中心 / {{ skill.slug }}{% endblock %}
+{% block content %}
+<div class="skill-detail-head">
+  <div>
+    <div class="skill-card-labels">
+      <span class="skill-category">{{ skill.category }}</span>
+      <span class="skill-mode {{ skill.execution_mode|lower }}">{{ skill.execution_mode }}</span>
+      <span class="skill-risk {{ skill.risk_tier }}">{{ skill.risk_tier }}</span>
+    </div>
+    <h1>{{ skill.name }}</h1>
+    <p>{{ skill.description }}</p>
+  </div>
+  <div class="action-row">
+    <form method="post" action="/projects/{{ project.id }}/skills/{{ skill.id }}/toggle">
+      <input type="hidden" name="enabled" value="{{ 0 if enabled else 1 }}">
+      <button class="btn {% if not enabled %}primary{% endif %}" type="submit">{{ 'Disable Skill' if enabled else 'Enable Skill' }}</button>
+    </form>
+    <a class="btn" href="/projects/{{ project.id }}/skills">返回</a>
+  </div>
+</div>
+
+<div class="skill-detail-grid">
+  <section class="panel skill-doc">
+    <div class="panel-title"><div><h2>SKILL.md</h2><small>方法ology content — never directly executed</small></div></div>
+    <pre>{{ skill.body_markdown }}</pre>
+  </section>
+  <aside>
+    <section class="panel">
+      <div class="mini-label">EXECUTION CONTRACT</div>
+      <div class="key-value">
+        <div><span>Enabled</span><b>{{ 'YES' if enabled else 'NO' }}</b></div>
+        <div><span>Mode</span><b>{{ skill.execution_mode }}</b></div>
+        <div><span>Risk</span><b>{{ skill.risk_tier }}</b></div>
+        <div><span>来源</span><b>{{ skill.source_kind }}</b></div>
+        <div><span>Version</span><b>{{ skill.version }}</b></div>
+      </div>
+      <div class="mini-label detail-subhead">MAPPED CAPABILITIES</div>
+      <div class="skill-capabilities">{% for cap in capabilities %}<code>{{ cap }}</code>{% else %}<code class="knowledge-cap">none — knowledge-only</code>{% endfor %}</div>
+    </section>
+
+    <section class="panel">
+      <div class="mini-label">PROVENANCE</div>
+      <p class="source-provenance">{{ skill.source_name or 'Local' }}</p>
+      {% if skill.source_url %}<a class="btn full" target="_blank" rel="noopener noreferrer" href="{{ skill.source_url }}">Open reference ↗</a>{% endif %}
+    </section>
+
+    <section class="panel">
+      <div class="mini-label">TAGS</div>
+      <div class="skill-capabilities">{% for tag in tags %}<code>{{ tag }}</code>{% else %}<span class="muted">No tags</span>{% endfor %}</div>
+    </section>
+  </aside>
+</div>
+{% endblock %}

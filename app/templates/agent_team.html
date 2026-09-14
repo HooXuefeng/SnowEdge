@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}AI 专家团队 · {{ project.name }}{% endblock %}
+{% block breadcrumb %}{{ project.name }} / AI 专家团队{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div>
+    <div class="mini-label">BOUNDED MULTI-AGENT REVIEW</div>
+    <h1>AI 专家团队</h1>
+    <p>Six analysis-only specialists share the redacted 安全知识图谱 and 测试记忆. They cannot invoke tools directly.</p>
+  </div>
+  <form method="post" action="/projects/{{ project.id }}/agent-team/run">
+    <button class="btn primary" type="submit">运行专家研判</button>
+  </form>
+</div>
+
+<div class="agent-team-safety">
+  <div><span class="status-dot ok"></span><b>Intent Contract</b><small>Every specialist receives fixed scope, skills, capabilities, visible data and handoff targets.</small></div>
+  <div><span class="status-dot ok"></span><b>Analysis only</b><small>No specialist tool invocation. Network work remains behind Skill/Scope/Policy.</small></div>
+  <div><span class="status-dot ok"></span><b>Drift blocked</b><small>Unexpected tool requests or invalid handoffs are discarded and counted.</small></div>
+</div>
+
+<section class="metric-strip six">
+  <div><span>GRAPH NODES</span><b>{{ knowledge_summary.nodes }}</b></div>
+  <div><span>GRAPH EDGES</span><b>{{ knowledge_summary.edges }}</b></div>
+  <div><span>MEMORIES</span><b>{{ memory_summary.count }}</b></div>
+  <div><span>SPECIALISTS DONE</span><b>{{ team_summary.completed }}</b></div>
+  <div><span>HANDOFFS</span><b>{{ handoffs|length }}</b></div>
+  <div><span>DRIFT BLOCKED</span><b>{{ team_summary.drift_blocked }}</b></div>
+</section>
+
+<section class="panel agent-roster">
+  <div class="panel-title"><div><h2>专家团队</h2><small>Fixed role contracts</small></div></div>
+  <div class="agent-role-grid">
+    {% for role in role_definitions %}
+    <article>
+      <div class="agent-role-head"><span>{{ "%02d"|format(loop.index) }}</span><div><b>{{ role.name }}</b><small>{{ role.slug }}</small></div></div>
+      <p>{{ role.purpose }}</p>
+      <div class="mini-label">DOMAIN CAPABILITIES</div>
+      <div class="skill-capabilities">{% for cap in role.allowed_capabilities %}<code>{{ cap }}</code>{% endfor %}</div>
+      <div class="mini-label role-handoff-label">HANDOFF TO</div>
+      <div class="agent-handoff-chips">{% for h in role.handoff_targets %}<span>{{ h }}</span>{% else %}<span>final</span>{% endfor %}</div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+{% if team_parent %}
+<section class="panel agent-team-run-head">
+  <div>
+    <div class="mini-label">TEAM RUN #{{ team_parent.id }}</div>
+    <h2>{{ team_parent.summary or team_parent.mission }}</h2>
+  </div>
+  <span class="run-state {{ team_parent.status }}">{{ team_parent.status }}</span>
+</section>
+
+<div class="specialist-run-grid">
+  {% for item in specialist_rows %}
+  <section class="panel specialist-card">
+    <div class="specialist-card-head">
+      <div>
+        <span class="run-state {{ item.run.status }}">{{ item.run.status }}</span>
+        <b>{{ item.run.role_name }}</b>
+      </div>
+      <span class="drift-pill {% if item.run.drift_count %}warn{% endif %}">drift {{ item.run.drift_count }}</span>
+    </div>
+    <p class="specialist-purpose">{{ item.role.purpose }}</p>
+
+    <div class="mini-label">SPECIALIST SUMMARY</div>
+    <p class="specialist-summary">{{ item.output.summary or item.output.error or 'No output.' }}</p>
+
+    <div class="mini-label">OBSERVATIONS</div>
+    <div class="specialist-observations">
+      {% for obs in item.output.observations or [] %}
+      <div><span>{{ obs.confidence }}%</span><p><b>{{ obs.subject_key }}</b><small>{{ obs.observation }}</small></p></div>
+      {% else %}<div class="muted">No observations.</div>{% endfor %}
+    </div>
+
+    <details class="specialist-contract">
+      <summary>Intent Contract</summary>
+      <div class="key-value">
+        <div><span>Risk ceiling</span><b>{{ item.contract.risk_ceiling }}</b></div>
+        <div><span>Tool invocation</span><b>{{ 'YES' if item.contract.tool_invocation else 'NO' }}</b></div>
+        <div><span>Allowed skills</span><b>{{ item.contract.allowed_skills|length }}</b></div>
+        <div><span>Visible node types</span><b>{{ item.contract.visible_node_types|length }}</b></div>
+      </div>
+      <div class="skill-capabilities">{% for cap in item.contract.allowed_capabilities %}<code>{{ cap }}</code>{% endfor %}</div>
+    </details>
+  </section>
+  {% endfor %}
+</div>
+
+<section class="panel flush">
+  <div class="panel-title"><div><h2>Agent 交接</h2><small>Analysis context only; handoffs do not invoke tools.</small></div></div>
+  <div class="agent-handoff-list">
+    {% for h in handoffs %}
+    <div>
+      <span>#{{ h.id }}</span>
+      <div><b>SpecialistRun #{{ h.from_specialist_run_id }} → {{ h.to_role_slug }}</b><small>{{ h.reason }}</small></div>
+      <span class="source-tag">{{ h.handoff_type }}</span>
+    </div>
+    {% else %}<div class="empty small">No handoffs recorded.</div>{% endfor %}
+  </div>
+</section>
+{% else %}
+<section class="panel hero-empty"><div class="empty"><b>No specialist team run yet.</b><br>Run the team to review the current graph and memory without issuing network actions.</div></section>
+{% endif %}
+
+<section class="panel flush">
+  <div class="panel-title"><div><h2>团队运行历史</h2><small>{{ recent_team_runs|length }} recent run(s)</small></div></div>
+  <div class="dense-table">
+    <div class="dense-head grid-team-history"><span>ID</span><span>状态</span><span>Stage</span><span>Summary</span></div>
+    {% for r in recent_team_runs %}
+    <a class="dense-row grid-team-history filter-row" href="/projects/{{ project.id }}/agent-team?run={{ r.id }}"><span>#{{ r.id }}</span><span><span class="run-state {{ r.status }}">{{ r.status }}</span></span><span>{{ r.stage }}</span><span class="truncate">{{ r.summary or r.mission }}</span></a>
+    {% else %}<div class="empty small">No team runs.</div>{% endfor %}
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% if team_parent %}
+<script>
+window.AGENT_TEAM_RUN = {
+  projectId: {{ project.id }},
+  runId: {{ team_parent.id }},
+  status: "{{ team_parent.status }}"
+};
+</script>
+{% endif %}
+{% endblock %}

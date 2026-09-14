@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+{% block title %}浏览器工作台 · {{ project.name }}{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 浏览器工作台{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div>
+    <div class="mini-label">浏览器工作台 2.0 · 仅观察</div>
+    <h1>浏览器工作台</h1>
+    <p>在授权范围限制下观察 XHR/Fetch、SPA Route、DOM 变化、WebSocket 元数据、Storage Key、Cookie 属性、CSP、表单与截图。</p>
+  </div>
+  <div class="action-row">
+    <a class="btn" href="/projects/{{ project.id }}/requests">请求工作台</a>
+    <a class="btn" href="/projects/{{ project.id }}/authorization">越权验证</a>
+  </div>
+</div>
+
+<div class="skill-safety-banner browser-safety">
+  <div><span class="status-dot ok"></span><b>仅允许顶层导航</b><small>不会自动提交表单、点击按钮或执行改变服务端状态的交互。</small></div>
+  <div><span class="status-dot ok"></span><b>阻止授权范围外请求</b><small>任何超出项目授权范围的 HTTP(S) 资源都会在浏览器发出前被阻止。</small></div>
+  <div><span class="status-dot ok"></span><b>事件历史中的敏感值会被隐藏</b><small>Authorization、Cookie、API Key 等敏感值不会显示在浏览器事件详情中。</small></div>
+</div>
+
+<div class="browser-runtime panel">
+  <div>
+    <span class="mini-label">浏览器运行时</span>
+    <b>{% if runtime.available %}Playwright available{% else %}Playwright unavailable{% endif %}</b>
+    <small>{{ runtime.detail }}</small>
+  </div>
+  {% if runtime.system_browser %}<code>{{ runtime.system_browser }}</code>{% endif %}
+</div>
+
+<section class="panel browser-launcher">
+  <div class="panel-title"><div><h2>开始只观察会话</h2><small>GET 导航。身份可选，但必须已经属于当前项目。</small></div><span class="policy-tag">READ_ONLY</span></div>
+  <form method="post" action="/projects/{{ project.id }}/browser/start" class="browser-start-form" id="browserStartForm">
+    <div class="browser-target-row">
+      <div class="browser-target-input">
+        <label>授权 URL</label>
+        <input name="target_url" required placeholder="https://app.example.test/" value="{{ selected_session.target_url if selected_session else '' }}">
+      </div>
+      <div>
+        <label>身份上下文</label>
+        <select name="identity_id" class="select-control">
+          <option value="">匿名身份</option>
+          {% for i in identities %}
+          <option value="{{ i.id }}">{{ i.name }} · {{ i.role }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn primary" type="submit">观察页面</button>
+    </div>
+    <div class="context-help">身份敏感值继续加密存储；浏览器事件历史只保留掩码后的受保护请求头。</div>
+  </form>
+</section>
+
+<div class="browser-workspace-grid">
+  <aside class="browser-session-list panel flush">
+    <div class="panel-title"><div><h2>会话</h2><small>{{ sessions|length }} recent</small></div></div>
+    <div class="browser-sessions">
+      {% for s in sessions %}
+      <a href="/projects/{{ project.id }}/browser?selected={{ s.id }}" class="{% if selected_session and selected_session.id == s.id %}active{% endif %}">
+        <span class="run-state {{ s.status }}">{{ s.status }}</span>
+        <div><b>#{{ s.id }} · {{ s.title or s.target_url }}</b><small>{{ s.target_url }}</small></div>
+      </a>
+      {% else %}<div class="empty small">暂无浏览器会话。</div>{% endfor %}
+    </div>
+  </aside>
+
+  <section class="browser-center">
+    {% if selected_session %}
+    <section class="panel browser-session-head">
+      <div>
+        <div class="mini-label">SESSION #{{ selected_session.id }}</div>
+        <h2>{{ selected_session.title or selected_session.target_url }}</h2>
+        <code>{{ selected_session.final_url or selected_session.target_url }}</code>
+      </div>
+      <div class="browser-session-meta">
+        <span class="run-state {{ selected_session.status }}">{{ selected_session.status }}</span>
+        <span>{{ selected_session.browser_name or 'browser pending' }}</span>
+      </div>
+    </section>
+
+    {% if selected_session.error %}
+    <div class="notice error">{{ selected_session.error }}</div>
+    {% endif %}
+
+    <section class="metric-strip six browser-metrics">
+      <div><span>请求</span><b>{{ summary.requests|default(0) }}</b></div>
+      <div><span>XHR / FETCH</span><b>{{ summary.xhr_fetch|default(0) }}</b></div>
+      <div><span>路由变化</span><b>{{ summary.route_changes|default(0) }}</b></div>
+      <div><span>WebSocket</span><b>{{ summary.websockets|default(0) }}</b></div>
+      <div><span>存储键名</span><b>{{ (summary.local_storage_keys|default(0)) + (summary.session_storage_keys|default(0)) }}</b></div>
+      <div><span>越界阻止</span><b>{{ summary.blocked_out_of_scope|default(0) }}</b></div>
+    </section>
+
+{% if runtime_meta %}
+<section class="panel browser-runtime-intel">
+  <div class="panel-title"><div><h2>运行时情报</h2><small>只保存名称、属性和长度，不保存 Storage/Cookie/WebSocket 内容值</small></div></div>
+  <div class="browser-intel-grid">
+    <div><span>DOM SHA256</span><code>{{ runtime_meta.dom_sha256[:16] if runtime_meta.dom_sha256 else '—' }}…</code><small>{% if runtime_meta.dom_similarity is not none %}与上次相似度 {{ runtime_meta.dom_similarity }}%{% else %}首次快照{% endif %}</small></div>
+    <div><span>CSP</span><b>{{ '已观察' if runtime_meta.document_security_headers.get('content-security-policy') else '未观察' }}</b><small>{{ runtime_meta.document_security_headers.get('content-security-policy','')[:120] }}</small></div>
+    <div><span>LocalStorage</span><b>{{ runtime_meta.storage.localStorageKeys|length if runtime_meta.storage else 0 }}</b><small>{{ (runtime_meta.storage.localStorageKeys[:8]|join(', ')) if runtime_meta.storage else '—' }}</small></div>
+    <div><span>SessionStorage</span><b>{{ runtime_meta.storage.sessionStorageKeys|length if runtime_meta.storage else 0 }}</b><small>{{ (runtime_meta.storage.sessionStorageKeys[:8]|join(', ')) if runtime_meta.storage else '—' }}</small></div>
+    <div><span>Cookie 元数据</span><b>{{ runtime_meta.cookies|length }}</b><small>值不保存 · 保留 HttpOnly / Secure / SameSite 属性</small></div>
+    <div><span>WebSocket</span><b>{{ runtime_meta.websockets|length }}</b><small>不保存帧内容；只记录数量和字节长度</small></div>
+  </div>
+
+  {% if runtime_meta.route_timeline %}
+  <div class="mini-label detail-subhead">SPA / 路由时间线</div>
+  <div class="browser-mini-list">
+    {% for route in runtime_meta.route_timeline[:20] %}
+    <div><code>{{ route.url|redact_url }}</code><small>{{ 'in scope' if route.in_scope else 'out of scope' }}</small></div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if runtime_meta.websockets %}
+  <div class="mini-label detail-subhead">WebSocket 元数据</div>
+  <div class="browser-mini-list">
+    {% for ws in runtime_meta.websockets[:12] %}
+    <div><code>{{ ws.url|redact_url }}</code><small>sent {{ ws.frames_sent }} / {{ ws.bytes_sent }}B · recv {{ ws.frames_received }} / {{ ws.bytes_received }}B · payload omitted</small></div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+
+    <section class="panel flush browser-preview">
+      <div class="panel-title">
+        <div><h2>页面截图</h2><small>本地截图证据</small></div>
+        {% if screenshot %}<a href="/projects/{{ project.id }}/browser-artifacts/{{ screenshot.id }}" target="_blank">打开完整图片 ↗</a>{% endif %}
+      </div>
+      {% if screenshot %}
+      <div class="browser-shot-frame">
+        <img src="/projects/{{ project.id }}/browser-artifacts/{{ screenshot.id }}" alt="Browser session screenshot">
+      </div>
+      {% elif selected_session.status in ['queued','running'] %}
+      <div class="empty browser-pending">浏览器观察正在运行…</div>
+      {% else %}
+      <div class="empty">暂无截图证据。</div>
+      {% endif %}
+    </section>
+
+    <section class="panel flush browser-network">
+      <div class="panel-title">
+        <div><h2>网络 / 控制台时间线</h2><small>这些请求只是观察结果；发送到请求工作台不会自动重放。</small></div>
+        <div class="browser-event-filters">
+          <button data-browser-filter="all" class="active">全部</button>
+          <button data-browser-filter="xhr">XHR / Fetch</button>
+          <button data-browser-filter="request">请求s</button>
+          <button data-browser-filter="console">控制台</button>
+          <button data-browser-filter="route_change">路由</button>
+          <button data-browser-filter="websocket">WebSocket</button>
+          <button data-browser-filter="blocked">已阻止</button>
+        </div>
+      </div>
+      <div class="browser-event-table">
+        <div class="dense-head grid-browser-event"><span>ID</span><span>类型</span><span>方法</span><span>资源</span><span>状态</span><span>URL / 详情</span></div>
+        {% for e in events %}
+        <a class="dense-row grid-browser-event browser-event-row {% if selected_event and selected_event.id == e.id %}selected{% endif %}"
+           href="/projects/{{ project.id }}/browser?selected={{ selected_session.id }}&event={{ e.id }}"
+           data-browser-kind="{% if e.event_type=='blocked_out_of_scope' %}blocked{% elif e.resource_type in ['xhr','fetch'] %}xhr{% elif e.resource_type=='websocket' %}websocket{% else %}{{ e.event_type }}{% endif %}">
+          <span>#{{ e.id }}</span>
+          <span><span class="source-tag">{{ e.event_type }}</span></span>
+          <span><span class="method {{ e.method|lower if e.method else 'unknown' }}">{{ e.method or '—' }}</span></span>
+          <span>{{ e.resource_type or '—' }}</span>
+          <span>{% if e.status_code %}{{ e.status_code }}{% elif not e.in_scope %}<span class="browser-blocked">已阻止</span>{% else %}—{% endif %}</span>
+          <span class="mono truncate">{{ e.url or selected_event_detail.text or selected_event_detail.type or 'event' }}</span>
+        </a>
+        {% else %}<div class="empty small">暂无事件记录。</div>{% endfor %}
+      </div>
+    </section>
+    {% else %}
+    <section class="panel hero-empty">
+      <div class="empty"><b>还没有浏览器会话。</b><br>从上方输入已授权 URL 开始；浏览器只观察页面加载行为。</div>
+    </section>
+    {% endif %}
+  </section>
+
+  <aside class="browser-inspector">
+    {% if selected_event %}
+    <section class="panel browser-event-inspector">
+      <div class="mini-label">事件详情</div>
+      <div class="browser-event-title">
+        <b>#{{ selected_event.id }} · {{ selected_event.event_type }}</b>
+        {% if not selected_event.in_scope %}<span class="proof-state error">超出授权范围</span>{% endif %}
+      </div>
+      {% if selected_event.url %}<code>{{ selected_event.url|redact_url }}</code>{% endif %}
+
+      <div class="key-value browser-kv">
+        <div><span>方法</span><b>{{ selected_event.method or '—' }}</b></div>
+        <div><span>资源</span><b>{{ selected_event.resource_type or '—' }}</b></div>
+        <div><span>状态</span><b>{{ selected_event.status_code or '—' }}</b></div>
+        <div><span>授权范围</span><b>{{ '是' if selected_event.in_scope else '否' }}</b></div>
+      </div>
+
+      <div class="mini-label detail-subhead">脱敏详情</div>
+      <pre class="browser-event-json">{{ selected_event_detail|tojson(indent=2) }}</pre>
+
+      <div class="browser-event-actions">
+        {% if selected_event.event_type == 'request' and selected_event.in_scope %}
+        <form method="post" action="/projects/{{ project.id }}/browser/events/{{ selected_event.id }}/to-request">
+          <button class="btn full" type="submit">发送到请求工作台</button>
+        </form>
+        {% if selected_event.method in ['GET','HEAD'] %}
+        <form method="post" action="/projects/{{ project.id }}/browser/events/{{ selected_event.id }}/to-authorization">
+          <button class="btn full" type="submit">发送到越权验证</button>
+        </form>
+        {% endif %}
+        {% endif %}
+        <form method="post" action="/projects/{{ project.id }}/browser/events/{{ selected_event.id }}/evidence">
+          <button class="btn primary full" type="submit">加入证据中心</button>
+        </form>
+      </div>
+    </section>
+    {% endif %}
+
+    {% if dom_artifact %}
+    <section class="panel browser-dom-panel">
+      <div class="mini-label">DOM 情报</div>
+      <div class="key-value">
+        <div><span>表单</span><b>{{ dom_meta.forms|length if dom_meta.forms else 0 }}</b></div>
+        <div><span>脚本</span><b>{{ dom_meta.scripts|length if dom_meta.scripts else 0 }}</b></div>
+        <div><span>链接</span><b>{{ dom_meta.links|length if dom_meta.links else 0 }}</b></div>
+      </div>
+
+      <div class="mini-label detail-subhead">表单</div>
+      <div class="browser-mini-list">
+        {% for form in dom_meta.forms[:12] %}
+        <div><b>{{ form.method }} · form #{{ form.index }}</b><small>{{ form.action or 'current page' }} · {{ form.inputs|length }} controls</small></div>
+        {% else %}<span class="muted">未发现表单。</span>{% endfor %}
+      </div>
+
+      <div class="mini-label detail-subhead">脚本</div>
+      <div class="browser-mini-list">
+        {% for script in dom_meta.scripts[:12] %}
+        <div><code>{{ script }}</code></div>
+        {% else %}<span class="muted">未发现外部脚本。</span>{% endfor %}
+      </div>
+    </section>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}
+{% block scripts %}
+{% if selected_session %}
+<script>
+window.BROWSER_SESSION = {
+  projectId: {{ project.id }},
+  sessionId: {{ selected_session.id }},
+  status: "{{ selected_session.status }}"
+};
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} · 越权验证{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 越权验证{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div>
+    <div class="mini-label">差异权限验证</div>
+    <h1>越权验证</h1>
+    <p>对同一个授权范围内的 GET/HEAD 请求切换身份进行差异比较，不会仅凭 HTTP 200 就判定为漏洞。</p>
+  </div>
+  <div class="action-row">
+    <a class="btn" href="/projects/{{ project.id }}/sessions">身份与会话</a>
+    <a class="btn" href="/projects/{{ project.id }}/requests">请求工作台</a>
+  </div>
+</div>
+
+<div class="metric-strip four">
+  <div><span>案例</span><b>{{ stats.authorization_cases }}</b></div>
+  <div><span>候选问题</span><b class="authz-candidate-text">{{ stats.authorization_candidates }}</b></div>
+  <div><span>权限有效</span><b class="authz-enforced-text">{{ stats.authorization_enforced }}</b></div>
+  <div><span>待复核</span><b>{{ stats.authorization_review }}</b></div>
+</div>
+
+<div class="authz-layout">
+  <section class="panel authz-runner">
+    <div class="panel-title">
+      <div><h2>新建差异权限验证</h2><small>自动化只允许 READ_ONLY 的 GET/HEAD 请求</small></div>
+      <span class="policy-tag">READ_ONLY</span>
+    </div>
+
+    {% if stored_requests %}
+    <form method="post" action="/projects/{{ project.id }}/authorization/run" class="authz-form" id="authzForm">
+      <label>已保存请求</label>
+      <select name="stored_request_id" class="select-control" required>
+        {% for r in stored_requests %}
+        <option value="{{ r.id }}" {% if selected_request_id == r.id %}selected{% endif %}>#{{ r.id }} · {{ r.method }} · {{ r.name }}</option>
+        {% endfor %}
+      </select>
+
+      <div class="form-grid two">
+        <div>
+          <label>验证类型</label>
+          <select name="test_type" class="select-control" id="authzTestType">
+            <option value="unauthenticated">未认证访问</option>
+            <option value="horizontal">水平越权 / 对象级</option>
+            <option value="vertical">垂直越权 / 角色级</option>
+          </select>
+        </div>
+        <div>
+          <label>资源标签 <span class="muted">（可选）</span></label>
+          <input name="object_label" placeholder="例如：用户资料 #1001 / 管理员报表">
+        </div>
+      </div>
+
+      <div class="form-grid two">
+        <div>
+          <label>基准身份</label>
+          <select name="baseline_identity_id" class="select-control" required>
+            <option value="">选择身份</option>
+            {% for i in identities %}
+            <option value="{{ i.id }}">{{ i.name }} · {{ i.role }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>对照身份</label>
+          <select name="comparison_identity_id" class="select-control" id="comparisonIdentity">
+            <option value="anonymous">匿名身份</option>
+            {% for i in identities %}
+            <option value="{{ i.id }}">{{ i.name }} · {{ i.role }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <label>预期资源归属身份 <span class="muted">（水平越权验证建议填写）</span></label>
+      <select name="expected_owner_identity_id" class="select-control">
+        <option value="">未指定</option>
+        {% for i in identities %}
+        <option value="{{ i.id }}">{{ i.name }} · {{ i.role }}</option>
+        {% endfor %}
+      </select>
+
+      <div class="authz-safety-grid">
+        <div><span class="status-dot ok"></span><b>授权范围强制校验</b><small>两次重放都会独立校验授权范围。</small></div>
+        <div><span class="status-dot ok"></span><b>仅 GET / HEAD</b><small>会改变服务端状态的方法会被自动拒绝。</small></div>
+        <div><span class="status-dot ok"></span><b>证据优先</b><small>潜在漏洞需要强差异信号并由人工确认。</small></div>
+      </div>
+
+      <button class="btn primary full" type="submit">执行差异权限验证</button>
+    </form>
+    {% else %}
+    <div class="empty">
+      No eligible READ_ONLY GET/HEAD request exists.
+      <div class="inline-actions"><a class="btn" href="/projects/{{ project.id }}/requests">Open 请求工作台</a></div>
+    </div>
+    {% endif %}
+  </section>
+
+  <aside class="panel authz-methodology">
+    <div class="mini-label">CLASSIFICATION LOGIC</div>
+    <h2>当前版本如何判断权限候选问题</h2>
+    <div class="methodology-list">
+      <div><span>01</span><p><b>基准响应必须有效</b><small>基准身份本身访问失败时，案例不会强行得出越权结论。</small></p></div>
+      <div><span>02</span><p><b>401 / 403 可作为权限控制生效证据</b><small>对照身份被服务端阻止。</small></p></div>
+      <div><span>03</span><p><b>200 is not enough</b><small>状态, body similarity, JSON structure, roles and ownership are combined.</small></p></div>
+      <div><span>04</span><p><b>资源归属可增强水平越权证据</b><small>明确预期资源归属身份后，可提高确定性判断置信度。</small></p></div>
+      <div><span>05</span><p><b>敏感字段仅记录结构路径</b><small>权限摘要记录字段路径，不记录敏感字段明文值。</small></p></div>
+    </div>
+  </aside>
+</div>
+
+<section class="panel flush">
+  <div class="panel-title">
+    <div><h2>权限验证案例</h2><small>{{ cases|length }} recorded test(s)</small></div>
+  </div>
+  <div class="dense-table">
+    <div class="dense-head grid-authz-case"><span>ID</span><span>Type</span><span>请求</span><span>Baseline</span><span>Comparison</span><span>结论</span><span>置信度</span><span></span></div>
+    {% for c in cases %}
+    <a class="dense-row grid-authz-case filter-row {% if selected_case and selected_case.id==c.id %}selected-row{% endif %}" href="/projects/{{ project.id }}/authorization/{{ c.id }}">
+      <span>#{{ c.id }}</span>
+      <span><span class="authz-type {{ c.test_type }}">{{ c.test_type }}</span></span>
+      <span class="mono truncate">{{ request_map.get(c.stored_request_id).url if request_map.get(c.stored_request_id) else '请求 #' ~ c.stored_request_id }}</span>
+      <span>{{ identity_map.get(c.baseline_identity_id).name if identity_map.get(c.baseline_identity_id) else 'Anonymous' }}</span>
+      <span>{{ identity_map.get(c.comparison_identity_id).name if identity_map.get(c.comparison_identity_id) else 'Anonymous' }}</span>
+      <span><span class="authz-verdict {{ c.classification }}">{{ c.classification }}</span></span>
+      <span><b>{{ c.confidence }}%</b></span>
+      <span class="arrow">→</span>
+    </a>
+    {% else %}
+    <div class="empty">No authorization cases yet.</div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

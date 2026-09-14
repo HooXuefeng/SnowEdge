@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}被动结果导入 · {{ project.name }}{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 被动结果导入{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div><div class="mini-label">PASSIVE IMPORT</div><h1>被动结果导入</h1><p>导入已有 SnowRelay、Burp、Nmap、Nuclei 结果并映射为 SnowEdge 项目数据。此功能只解析上传文件，不会执行扫描器或访问目标。</p></div>
+  <div class="scope-badge"><span class="status-dot ok"></span>被动解析 · Scope 过滤 · 不执行外部命令</div>
+</div>
+
+<div class="knowledge-safety-banner">
+  <div><b>Nmap XML</b><small>导入授权范围内的资产与开放服务。</small></div>
+  <div><b>Burp XML</b><small>导入请求结构与 Issue；敏感请求头仍走加密存储。</small></div>
+  <div><b>Nuclei JSONL</b><small>导入 Finding 元数据；不会把原始请求/响应直接复制到 Evidence。</small></div>
+  <div><b>HAR / Postman / OpenAPI</b><small>生成 Endpoint、Parameter 和 Stored Request；非 GET/HEAD 只保存，不自动重放。</small></div>
+  <div><b>SnowRelay 联动包</b><small>先在浏览器本地预览，再按 Scope 导入资产、服务、候选 Finding 与 Evidence；拒绝口令明文。</small></div>
+</div>
+
+<section class="panel">
+  <div class="panel-title"><div><h2>上传结果文件</h2><small>单文件最大 25 MB，最多解析 20,000 条记录</small></div></div>
+  <form method="post" action="/projects/{{ project.id }}/imports" enctype="multipart/form-data" class="settings-form-grid">
+    <div>
+      <label>结果类型</label>
+      <select name="import_type" class="select-control" id="importType" required>
+        <option value="snowforge_json">SnowRelay → SnowEdge 联动包</option>
+        <option value="burp_xml">Burp XML / HTTP History / Issues</option>
+        <option value="nmap_xml">Nmap XML</option>
+        <option value="nuclei_jsonl">Nuclei JSONL</option>
+        <option value="har">HAR 浏览器流量</option>
+        <option value="postman_collection">Postman Collection v2.x</option>
+        <option value="openapi">OpenAPI / Swagger JSON/YAML</option>
+      </select>
+    </div>
+    <div><label>文件</label><input type="file" name="package" id="importPackage" required></div>
+    <div><label>&nbsp;</label><button class="btn primary" id="importSubmit" type="submit">开始被动导入</button></div>
+  </form>
+  <div id="snowforgePreview" class="context-help" hidden style="margin-top:14px" aria-live="polite"></div>
+</section>
+
+<div class="split two">
+<section class="panel flush">
+  <div class="panel-title"><div><h2>导入历史</h2><small>{{ import_batches|length }} 批次</small></div></div>
+  <div class="dense-table">
+    <div class="dense-head grid-imports"><span>ID</span><span>类型</span><span>状态</span><span>文件</span><span>导入/跳过</span></div>
+    {% for b in import_batches %}
+    <a class="dense-row grid-imports {% if selected_batch and selected_batch.id==b.id %}selected{% endif %}" href="/projects/{{ project.id }}/imports?selected={{ b.id }}">
+      <span>#{{ b.id }}</span><span>{{ b.import_type }}</span><span>{{ b.status|status_zh }}</span><span class="truncate">{{ b.filename }}</span><span>{{ b.records_imported }}/{{ b.records_skipped }}</span>
+    </a>
+    {% else %}<div class="empty">暂无导入记录。</div>{% endfor %}
+  </div>
+</section>
+
+<section class="panel flush">
+  <div class="panel-title"><div><h2>批次记录</h2><small>{% if selected_batch %}SHA256 {{ selected_batch.file_sha256[:16] }}…{% endif %}</small></div></div>
+  <div class="dense-table">
+    <div class="dense-head grid-import-records"><span>类型</span><span>来源</span><span>状态</span><span>实体</span></div>
+    {% for r in import_records %}
+    <div class="dense-row grid-import-records"><span>{{ r.record_type }}</span><span class="truncate">{{ r.source_ref }}</span><span>{{ r.status }}</span><span>{{ r.entity_type }}{% if r.entity_id %} #{{ r.entity_id }}{% endif %}</span></div>
+    {% else %}<div class="empty">选择一个导入批次查看详情。</div>{% endfor %}
+  </div>
+</section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const type = document.getElementById('importType');
+  const file = document.getElementById('importPackage');
+  const preview = document.getElementById('snowforgePreview');
+  const submit = document.getElementById('importSubmit');
+  let validSnowForgePackage = false;
+
+  function setPreview(message, ok) {
+    preview.hidden = false;
+    preview.textContent = message;
+    preview.style.borderColor = ok ? '#a7d8c6' : '#f0b8c0';
+    preview.style.background = ok ? '#f0fbf6' : '#fff4f5';
+    preview.style.color = ok ? '#176b50' : '#a72f45';
+  }
+
+  async function inspectPackage() {
+    validSnowForgePackage = false;
+    preview.hidden = true;
+    if (type.value !== 'snowforge_json') {
+      submit.disabled = false;
+      return;
+    }
+    submit.disabled = true;
+    const selected = file.files && file.files[0];
+    if (!selected) return;
+    if (selected.size > 25 * 1024 * 1024) {
+      setPreview('文件超过 25 MB，无法导入。', false);
+      return;
+    }
+    try {
+      const data = JSON.parse(await selected.text());
+      const records = Array.isArray(data.records) ? data.records : null;
+      if (data.schema !== 'snowedge-import/1' || !records || !data.producer || !['SnowRelay', 'SnowForge'].includes(data.producer.name)) {
+        throw new Error('格式或生产者标识不正确');
+      }
+      if (records.some(row => row && String(row.password || '').trim())) {
+        throw new Error('检测到口令明文，SnowEdge 将拒绝导入');
+      }
+      const assets = new Set(records.map(row => row && (row.asset || row.hostname)).filter(Boolean));
+      const findings = records.filter(row => row && row.title).length;
+      const evidence = records.filter(row => row && row.evidence).length;
+      validSnowForgePackage = true;
+      submit.disabled = false;
+      setPreview(`预览通过 · ${records.length} 条记录 · ${assets.size} 个资产 · ${findings} 条候选 Finding · ${evidence} 条含 Evidence。提交后仍会按当前项目 Scope 逐条过滤。`, true);
+    } catch (error) {
+      setPreview(`无法导入：${error.message || error}`, false);
+    }
+  }
+
+  type.addEventListener('change', inspectPackage);
+  file.addEventListener('change', inspectPackage);
+  type.form.addEventListener('submit', event => {
+    if (type.value === 'snowforge_json' && !validSnowForgePackage) {
+      event.preventDefault();
+      setPreview('请先选择并通过预览检查的 SnowRelay 联动包。', false);
+    }
+  });
+  inspectPackage();
+})();
+</script>
+{% endblock %}

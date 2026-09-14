@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} · 请求工作台 2.0{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 请求工作台 2.0{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div>
+    <div class="mini-label">请求工作台 2.0 · 安全重放</div>
+    <h1>请求工作台 2.0</h1>
+    <p>用于整理、版本化和比较请求；只有 READ_ONLY 请求才允许从工作台执行重放。</p>
+  </div>
+  <div class="action-row">
+    <a class="btn" href="/projects/{{ project.id }}/sessions">身份与会话</a>
+    <a class="btn" href="/projects/{{ project.id }}/authorization-matrix">权限矩阵</a>
+    <button class="btn primary" data-open-modal="import请求Modal">导入 Burp 原始请求</button>
+  </div>
+</div>
+
+<details class="request-shortcut-help"><summary>快捷键</summary><div class="request-shortcuts">
+  <kbd>Ctrl+Enter</kbd><em>重放只读请求</em>
+  <kbd>Ctrl+S</kbd><em>保存新版本</em>
+  <kbd>Alt+1</kbd><em>原始请求</em>
+  <kbd>Alt+2</kbd><em>结构化编辑</em>
+  <kbd>Alt+3</kbd><em>最近响应</em>
+  <kbd>Alt+4</kbd><em>版本历史</em>
+</div></details>
+
+<div class="request-v2-layout">
+  <aside class="panel flush request-library">
+    <div class="panel-title"><div><h2>请求库</h2><small>{{ stored_requests|length }} 条</small></div></div>
+    <div class="request-list">
+      {% for r in stored_requests %}
+      <a class="request-list-row filter-row {% if selected_request and selected_request.id==r.id %}selected{% endif %}" href="/projects/{{ project.id }}/requests?selected={{ r.id }}">
+        <span class="method {{ r.method|lower }}">{{ r.method }}</span>
+        <div><b class="truncate">{{ r.name }}</b><small class="mono truncate">{{ r.url|redact_url }}</small></div>
+        <span class="policy-mini {{ r.policy_class|lower }}">{{ r.policy_class }}</span>
+      </a>
+      {% else %}<div class="empty small">还没有请求。可从 Burp、Browser、HAR、Postman 或 OpenAPI 导入。</div>{% endfor %}
+    </div>
+  </aside>
+
+  <section class="panel flush request-v2-center">
+    {% if selected_request %}
+    <div class="action-row"><a class="btn primary" href="/projects/{{ project.id }}/workflow/request/{{ selected_request.id }}">AI 研判与工具联动</a><a class="btn" href="/projects/{{ project.id }}/findings/new?source_kind=request&source_id={{ selected_request.id }}">从此请求记录漏洞</a></div>
+    <div class="request-toolbar">
+      <div>
+        <span class="method {{ selected_request.method|lower }}">{{ selected_request.method }}</span>
+        <code>{{ selected_request.url|redact_url }}</code>
+      </div>
+      <div class="request-toolbar-right">
+        <span class="source-tag">{{ selected_request.source }}</span>
+        <span class="policy-tag">{{ selected_request.policy_class }}</span>
+      </div>
+    </div>
+
+    <div class="request-tabs request-v2-tabs">
+      <button class="tab active" data-tab-target="requestRaw">原始请求</button>
+      <button class="tab" data-tab-target="requestStructured">结构化编辑</button>
+      <button class="tab" data-tab-target="responseRaw">最近响应</button>
+      <button class="tab" data-tab-target="requestHistory">版本历史</button>
+    </div>
+
+    <div class="tab-pane active request-editor" data-tab-pane="requestRaw">
+      <div class="raw-section">
+        <div class="raw-label">原始请求 · 敏感值已隐藏</div>
+        <pre class="request-v2-raw">{{ request_raw }}</pre>
+      </div>
+      {% if request_body_pretty and request_body_pretty != selected_request.body %}
+      <div class="raw-section">
+        <div class="raw-label">请求体 · 格式化 JSON</div>
+        <pre>{{ request_body_pretty }}</pre>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="tab-pane request-editor" data-tab-pane="requestStructured">
+      <div id="requestDraftBar" class="draft-recovery-bar" {% if not request_draft %}hidden{% endif %}><div><b>检测到未保存草稿</b><small id="requestDraftTime">{% if request_draft %}{{ request_draft.updated_at }}{% endif %}</small></div><div class="action-row"><button type="button" class="btn" id="restoreRequestDraft">恢复草稿</button><button type="button" class="btn" id="discardRequestDraft">丢弃</button></div></div>
+      <form method="post" action="/projects/{{ project.id }}/requests/{{ selected_request.id }}/edit" class="request-edit-form" id="requestEditForm" data-project-id="{{ project.id }}" data-request-id="{{ selected_request.id }}">
+        <div class="request-edit-row top">
+          <select name="method" class="select-control method-select">
+            {% for method in ['GET','HEAD','POST','PUT','PATCH','DELETE','OPTIONS'] %}
+            <option value="{{ method }}" {% if selected_request.method==method %}selected{% endif %}>{{ method }}</option>
+            {% endfor %}
+          </select>
+          <input name="url" value="{{ selected_request.url|redact_url }}" required>
+        </div>
+        <div class="form-grid two">
+          <div><label>请求名称</label><input name="name" value="{{ selected_request.name }}" required></div>
+          <div><label>变更说明</label><input name="change_note" placeholder="例如：修改 page 参数用于只读响应比较"></div>
+        </div>
+        <label>公开 / 新增请求头</label>
+        <textarea name="headers_text" rows="8" class="mono request-edit-textarea" placeholder="Accept: application/json">{{ request_public_headers_text }}</textarea>
+        {% if secret_summary %}
+        <div class="secret-grid request-secret-summary">
+          {% for h in secret_summary %}<div><span>{{ h.name }}</span><code>{{ h.value }}</code></div>{% endfor %}
+        </div>
+        <div class="context-help">已保存的敏感请求头不会因为结构化编辑而被清空。若输入同名 Authorization/Cookie/API Key，会用新值覆盖并重新加密。</div>
+        {% endif %}
+        <label>Body</label>
+        <textarea name="body" rows="12" class="mono request-edit-textarea">{{ selected_request.body }}</textarea>
+        <div class="request-edit-footer">
+          <div class="guard-note">保存编辑只更新 Stored Request，不会发送网络请求。POST/PUT/PATCH/DELETE 保存后仍自动归类为 STATE_CHANGE。</div>
+          <div class="draft-save-state" id="draftSaveState">自动保存：就绪</div><button class="btn primary" type="submit">保存为新版本</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="tab-pane request-editor" data-tab-pane="responseRaw">
+      {% if selected_replay %}
+      <div class="response-meta-line">
+        <span class="status-code">HTTP {{ selected_replay.status_code or '—' }}</span>
+        <span>{{ selected_replay.elapsed_ms or '—' }} ms</span>
+        <span>{{ identity_map.get(selected_replay.identity_id, '匿名身份') if selected_replay.identity_id else '匿名身份' }}</span>
+        {% if selected_replay.error %}<span class="error-text">{{ selected_replay.error }}</span>{% endif %}
+      </div>
+      <div class="raw-section"><div class="raw-label">响应头</div><pre>{{ selected_response_headers|tojson(indent=2) }}</pre></div>
+      <div class="raw-section">
+        <div class="raw-label">响应体 {% if selected_response_pretty and selected_response_pretty != selected_replay.response_body %}· 格式化 JSON{% endif %}</div>
+        <pre>{{ selected_response_pretty or selected_replay.response_body or '（空）' }}</pre>
+      </div>
+      {% else %}<div class="empty">还没有重放结果。</div>{% endif %}
+    </div>
+
+    <div class="tab-pane request-editor" data-tab-pane="requestHistory">
+      <div class="revision-list">
+        {% for rev in request_revisions %}
+        <article class="revision-row">
+          <div class="revision-no">r{{ rev.revision_no }}</div>
+          <div>
+            <b>{{ rev.method }} · {{ rev.name }}</b>
+            <code>{{ rev.url|redact_url }}</code>
+            <small>{{ rev.change_note or '无变更说明' }} · {{ rev.created_at.strftime('%Y-%m-%d %H:%M:%S') if rev.created_at else '' }}</small>
+          </div>
+          <div>
+            {% if rev.method != selected_request.method or rev.url != selected_request.url or rev.body != selected_request.body or rev.headers_json != selected_request.headers_json %}
+            <form method="post" action="/projects/{{ project.id }}/requests/{{ selected_request.id }}/restore/{{ rev.id }}">
+              <button class="row-action" type="submit">恢复此版本</button>
+            </form>
+            {% else %}
+            <span class="run-state done">当前</span>
+            {% endif %}
+          </div>
+        </article>
+        {% else %}<div class="empty small">暂无版本历史。</div>{% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <div class="empty hero-empty">选择或导入一条请求。</div>
+    {% endif %}
+  </section>
+
+  <aside class="panel request-inspector">
+    {% if selected_request %}
+    <div class="mini-label">人工安全重放</div>
+    <h2>身份切换与重放</h2>
+    <form method="post" action="/projects/{{ project.id }}/requests/{{ selected_request.id }}/replay" id="requestReplayForm">
+      <label>身份</label>
+      <select name="identity_id" class="select-control">
+        <option value="">匿名身份</option>
+        {% for i in identities %}<option value="{{ i.id }}">{{ i.name }} · {{ i.role }}</option>{% endfor %}
+      </select>
+      <div class="guard-note">每次重放都会重新检查 Scope。Redirect 不自动跟随；跳出 Scope 的 Location 只记录，不访问。</div>
+      {% if selected_request.policy_class == 'READ_ONLY' %}
+      <button class="btn primary full" type="submit">重放只读请求</button>
+      {% else %}
+      <button class="btn full" type="button" disabled>STATE_CHANGE · 禁止自动重放</button>
+      {% endif %}
+    </form>
+
+    {% if selected_request.policy_class != 'READ_ONLY' %}
+    <form method="post" action="/projects/{{ project.id }}/requests/{{ selected_request.id }}/mark-read-only" class="mark-read-only-form">
+      <div class="danger-note">只有你已经确认此业务操作实际上不会改变服务端状态时，才手工标记为 READ_ONLY。V1.5 编辑器本身绝不会自动这么做。</div>
+      <button class="btn" type="submit">人工确认此请求为 READ_ONLY</button>
+    </form>
+    {% endif %}
+
+    <div class="inspector-divider"></div>
+    <div class="mini-label">重放历史</div>
+    <div class="replay-list">
+      {% for rr in replays %}
+      <div class="replay-row">
+        <div><b>#{{ rr.id }} · HTTP {{ rr.status_code or 'ERR' }}</b><small>{{ identity_map.get(rr.identity_id, '匿名身份') if rr.identity_id else '匿名身份' }} · {{ rr.elapsed_ms or '—' }} ms</small></div>
+        <span class="run-state {{ rr.status }}">{{ rr.status }}</span>
+      </div>
+      {% else %}<div class="empty small">暂无重放记录。</div>{% endfor %}
+    </div>
+
+    {% if replays|length >= 2 %}
+    <form method="post" action="/projects/{{ project.id }}/diff" class="diff-form">
+      <div class="mini-label">响应对比</div>
+      <select name="left_id" class="select-control">{% for rr in replays %}<option value="{{ rr.id }}">#{{ rr.id }} · {{ identity_map.get(rr.identity_id, '匿名身份') if rr.identity_id else '匿名身份' }}</option>{% endfor %}</select>
+      <select name="right_id" class="select-control">{% for rr in replays|reverse %}<option value="{{ rr.id }}">#{{ rr.id }} · {{ identity_map.get(rr.identity_id, '匿名身份') if rr.identity_id else '匿名身份' }}</option>{% endfor %}</select>
+      <button class="btn full" type="submit">生成响应差异</button>
+    </form>
+    {% endif %}
+
+    <div class="inspector-divider"></div>
+    <div class="mini-label">Burp 扩展</div>
+    <p class="muted">Burp 可右键把选中请求发送到本项目。接收 API 要求本机集成令牌，且只保存、不自动重放。</p>
+    <a class="btn full" href="/setup">配置本机 Burp 令牌</a>
+    {% endif %}
+  </aside>
+</div>
+
+<div class="modal" id="import请求Modal">
+  <div class="modal-shade" data-close-modal></div>
+  <div class="modal-body wide-modal">
+    <div class="modal-head"><h2>导入 Burp 原始请求</h2><button data-close-modal>×</button></div>
+    <form method="post" action="/projects/{{ project.id }}/requests/import">
+      <div class="form-grid two">
+        <div><label>名称</label><input name="name" value="Imported Burp Request"></div>
+        <div><label>相对请求行协议</label><select name="scheme" class="select-control"><option>https</option><option>http</option></select></div>
+      </div>
+      <label>原始 HTTP 请求</label>
+      <textarea class="raw-import" name="raw_request" rows="18" required placeholder="GET /api/user HTTP/1.1&#10;Host: example.com&#10;Cookie: session=...&#10;&#10;"></textarea>
+      <label class="checkbox-line"><input type="checkbox" name="explicit_read_only" value="true"> 明确标记为 READ_ONLY（仅限已确认不会改变服务端状态的请求）</label>
+      <div class="notice">Cookie、Authorization、API Key 等敏感请求头会与公开元数据分离并加密保存。</div>
+      <div class="modal-actions"><button type="button" class="btn" data-close-modal>取消</button><button class="btn primary">解析并保存</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}

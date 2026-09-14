@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}AI 安全助手 · {{ project.name }}{% endblock %}
+{% block breadcrumb %}{{ project.name }} / AI 安全助手{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div>
+    <div class="mini-label">项目问答 · 引用可追溯</div>
+    <h1>AI 安全助手</h1>
+    <p>询问当前测试项目。回答基于脱敏后的诊断证据、安全知识图谱、测试记忆和测试覆盖度。</p>
+  </div>
+  <div class="scope-badge"><span class="status-dot ok"></span>仅分析 · 不调用工具</div>
+</div>
+
+<div class="copilot-safety">
+  <div><b>证据支撑</b><small>项目事实结论必须引用允许范围内的图谱、记忆或覆盖度来源。</small></div>
+  <div><b>提示注入隔离</b><small>图谱标签和导入技能文本均视为不可信数据，不作为执行指令。</small></div>
+  <div><b>无隐藏执行</b><small>AI 安全助手不能重放请求、访问目标、调用技能或扩大授权范围。</small></div>
+</div>
+
+<div class="copilot-layout">
+  <aside class="panel flush copilot-history">
+    <div class="panel-title"><div><h2>问题历史</h2><small>{{ copilot_history|length }} recent</small></div></div>
+    <div>
+      {% for q in copilot_history %}
+      <a href="/projects/{{ project.id }}/copilot?selected={{ q.id }}" class="{% if selected_query and selected_query.id==q.id %}active{% endif %}">
+        <span class="run-state {{ q.status }}">{{ q.status }}</span>
+        <div><b>#{{ q.id }} · {{ q.question }}</b><small>{{ q.provider }} · {{ q.citation_count }} citation(s)</small></div>
+      </a>
+      {% else %}<div class="empty small">暂无问题。</div>{% endfor %}
+    </div>
+  </aside>
+
+  <main class="copilot-main">
+    <section class="panel copilot-compose">
+      <form method="post" action="/projects/{{ project.id }}/copilot" id="copilotForm">
+        <textarea name="question" required maxlength="4000" placeholder="例如：目前哪些高价值测试还没有覆盖？之前对 /api/profile 做过哪些授权验证？哪些 漏洞 已经复测解决？"></textarea>
+        <div>
+          <span>AI 安全助手只读取结构化项目上下文。</span>
+          <button class="btn primary" type="submit">询问 AI 助手</button>
+        </div>
+      </form>
+    </section>
+
+    {% if copilot %}
+    <section class="panel copilot-answer">
+      <div class="copilot-answer-head">
+        <div><span class="mini-label">QUERY #{{ copilot.id }}</span><h2>{{ copilot.question }}</h2></div>
+        <span class="run-state {{ copilot.status }}">{{ copilot.status }}</span>
+      </div>
+
+      {% if copilot.status in ['queued','running'] %}
+      <div class="copilot-thinking"><span></span><b>正在分析脱敏项目上下文…</b><small>当前不会执行任何网络动作。</small></div>
+      {% elif copilot.status=='error' %}
+      <div class="notice error">{{ copilot.answer.gaps|join(' · ') }}</div>
+      {% else %}
+      <div class="copilot-response">{{ copilot.answer.answer }}</div>
+
+      <div class="copilot-evidence-grid">
+        <div>
+          <div class="mini-label">证据引用</div>
+          <div class="copilot-citations">
+            {% for c in copilot_citations %}
+            <a href="{{ c.url }}"><span>{{ c.ref }}</span><div><b>{{ c.label }}</b><small>{{ c.kind }} · {{ c.type }}</small></div></a>
+            {% else %}<div class="empty small">没有返回引用，请将该回答视为缺少证据支撑。</div>{% endfor %}
+          </div>
+        </div>
+        <div>
+          <div class="mini-label">证据缺口</div>
+          <div class="copilot-gaps">
+            {% for gap in copilot.answer.gaps %}<div>{{ gap }}</div>{% else %}<div class="ok">未报告明确缺口。</div>{% endfor %}
+          </div>
+        </div>
+      </div>
+
+      {% if copilot.answer.suggested_views %}
+      <div class="copilot-view-links">
+        <span class="mini-label">建议查看</span>
+        {% for view in copilot.answer.suggested_views %}
+          {% if view=='knowledge_graph' %}<a href="/projects/{{ project.id }}/knowledge-graph">安全知识图谱</a>
+          {% elif view=='memory' %}<a href="/projects/{{ project.id }}/memory">测试记忆</a>
+          {% elif view=='coverage' %}<a href="/projects/{{ project.id }}/coverage">测试覆盖度</a>
+          {% elif view=='findings' %}<a href="/projects/{{ project.id }}/findings">漏洞发现</a>
+          {% elif view=='requests' %}<a href="/projects/{{ project.id }}/requests">请求s</a>
+          {% elif view=='authorization' %}<a href="/projects/{{ project.id }}/authorization">权限验证</a>
+          {% elif view=='browser' %}<a href="/projects/{{ project.id }}/browser">浏览器</a>
+          {% elif view=='reports' %}<a href="/projects/{{ project.id }}/reports">报告中心</a>{% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
+      <div class="copilot-meta">提供方 {{ copilot.provider }} · citations {{ copilot.citation_count }} · blocked drift {{ copilot.drift_count }}</div>
+      {% endif %}
+    </section>
+    {% else %}
+    <section class="panel hero-empty"><div class="empty"><b>输入一个项目问题。</b><br>AI 安全助手只会基于结构化项目证据回答，并明确展示引用来源。</div></section>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
+{% block scripts %}
+{% if copilot and copilot.status in ['queued','running'] %}
+<script>window.COPILOT_QUERY={projectId:{{ project.id }},queryId:{{ copilot.id }},status:"{{ copilot.status }}"};</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}{{ '编辑漏洞' if finding else '手工新建漏洞' }} · SnowEdge{% endblock %}
+{% block content %}
+<div class="page-title-row"><div><h1>{{ '编辑漏洞' if finding else '手工新建漏洞' }}</h1><p>先记录发现，再补充截图和证据。保存后的内容会用于报告。</p></div><a class="btn" href="{{ '/findings/' ~ finding.id if finding else '/projects/' ~ project.id ~ '/findings' }}">取消</a></div>
+{% if error %}<div class="notice" role="alert">{{ error }}</div>{% endif %}
+<section class="panel scan-panel"><form method="post" id="findingEditor">
+<input type="hidden" name="revision" value="{{ revision }}">
+{% if source_kind %}<input type="hidden" name="source_kind" value="{{ source_kind }}"><input type="hidden" name="source_id" value="{{ source_id }}"><p class="notice">来源 {{ source_kind }}:{{ source_id }} 将作为证据快照关联。请核对标题、目标、等级与复现步骤后保存。</p>{% endif %}
+<label for="findingTitle">漏洞标题 *</label><input id="findingTitle" name="title" maxlength="300" required value="{{ fields.get('title','') }}" placeholder="例如：普通用户可查看其他用户的订单">
+<div class="scan-pair"><label>风险等级<select name="severity">{% for key,label in [('critical','严重'),('high','高危'),('medium','中危'),('low','低危'),('info','信息')] %}<option value="{{ key }}" {% if fields.get('severity','medium')==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label><label>漏洞类型<input name="vuln_type" maxlength="160" value="{{ fields.get('vuln_type','') }}" placeholder="例如：水平越权"></label></div>
+<label>受影响目标 *<input name="target" maxlength="1000" required value="{{ fields.get('target','') }}" placeholder="授权范围内的 URL、域名或 IP"></label>
+<label>参数<input name="parameter" maxlength="300" value="{{ fields.get('parameter','') }}" placeholder="例如：order_id"></label>
+<label>漏洞描述 / 复现步骤 *<textarea name="description" rows="8" maxlength="60000" required>{{ fields.get('description','') }}</textarea></label>
+<label>修复建议<textarea name="recommendation" rows="5" maxlength="60000">{{ fields.get('recommendation','') }}</textarea></label>
+<div class="scan-pair"><label>CWE<input name="cwe_id" maxlength="32" value="{{ fields.get('cwe_id','') }}" placeholder="CWE-862"></label><label>txb02 分类<input name="txb02_category" maxlength="180" value="{{ fields.get('txb02_category','') }}" placeholder="例如：权限控制"></label></div>
+<label>OWASP 分类<input name="owasp_category" maxlength="80" value="{{ fields.get('owasp_category','') }}"></label>
+<button class="btn primary" type="submit">保存漏洞</button><span class="context-help">保存后可继续添加截图、证据与复测记录。</span>
+</form></section><link rel="stylesheet" href="/static/scan-center.css">
+{% endblock %}

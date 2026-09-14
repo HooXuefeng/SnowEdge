@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} · 响应差异{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 请求工作台 / Diff #{{ diff.id }}{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div><div class="mini-label">AUTHORIZATION COMPARISON</div><h1>响应差异 #{{ diff.id }}</h1><p>{{ stored.method if stored else '' }} {{ (stored.url|redact_url) if stored else '' }}</p></div>
+  <a class="btn" href="/projects/{{ project.id }}/requests?selected={{ stored.id if stored else '' }}">返回 to request</a>
+</div>
+
+<div class="diff-scorebar">
+  <div><span>LEFT</span><b>HTTP {{ left.status_code or '—' }}</b><small>{{ left.elapsed_ms or '—' }} ms</small></div>
+  <div><span>TEXT SIMILARITY</span><b>{{ (summary.text_similarity * 100)|round(1) }}%</b><small>{{ 'LOW' if summary.signals.low_similarity else 'SIMILAR' }}</small></div>
+  <div><span>LENGTH DELTA</span><b>{{ summary.length.delta }}</b><small>{{ summary.length.left }} → {{ summary.length.right }}</small></div>
+  <div><span>RIGHT</span><b>HTTP {{ right.status_code or '—' }}</b><small>{{ right.elapsed_ms or '—' }} ms</small></div>
+</div>
+
+<div class="split two">
+  <section class="panel">
+    <div class="panel-title"><div><h2>结构化差异信号</h2><small>High-level response changes</small></div></div>
+    <div class="key-value diff-signals">
+      <div><span>状态 changed</span><b>{{ summary.signals.status_changed }}</b></div>
+      <div><span>Large length delta</span><b>{{ summary.signals.large_length_delta }}</b></div>
+      <div><span>Low text similarity</span><b>{{ summary.signals.low_similarity }}</b></div>
+      <div><span>JSON field changes</span><b>{{ summary.signals.json_field_changes }}</b></div>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel-title"><div><h2>Header 差异</h2><small>Volatile headers excluded</small></div></div>
+    <pre class="diff-json">{{ summary.headers|tojson(indent=2) }}</pre>
+  </section>
+</div>
+
+{% if summary.json.detected %}
+<section class="panel diff-section">
+  <div class="panel-title"><div><h2>JSON 字段差异</h2><small>Flattened object paths</small></div></div>
+  <pre class="diff-json">{{ summary.json|tojson(indent=2) }}</pre>
+</section>
+{% endif %}
+
+<div class="response-compare">
+  <section class="panel"><div class="panel-title"><div><h2>Left 响应</h2><small>Replay #{{ left.id }}</small></div></div><pre>{{ left.response_body }}</pre></section>
+  <section class="panel"><div class="panel-title"><div><h2>Right 响应</h2><small>Replay #{{ right.id }}</small></div></div><pre>{{ right.response_body }}</pre></section>
+</div>
+{% endblock %}

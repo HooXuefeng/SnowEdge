@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} · AI 任务控制{% endblock %}
+{% block breadcrumb %}{{ project.name }} / AI 任务控制{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div><div class="mini-label">AI ORCHESTRATION</div><h1>AI 任务控制</h1><p>查看规划、确定性动作、策略等级和证据复核阶段。</p></div>
+  <div class="action-row"><a class="btn" href="/projects/{{ project.id }}/agent-team">AI 专家团队</a><span class="scope-badge"><span class="status-dot ok"></span>Human-readable audit trail</span></div>
+</div>
+
+{% if agent_run %}
+<div class="mission-grid">
+  <section class="panel mission-card">
+    <div class="mission-head">
+      <div><span class="run-state {{ agent_run.status }}">{{ agent_run.status }}</span><span class="mission-stage">{{ agent_run.stage }}</span></div>
+      <span class="mono">RUN #{{ agent_run.id }}</span>
+    </div>
+    <h2>{{ agent_run.target }}</h2>
+    <p>{{ agent_run.mission }}</p>
+    <div class="stage-track">
+      {% for stage in ['recon','web_discovery','validation','analysis','complete'] %}
+      <div class="{% if stage==agent_run.stage %}current{% endif %}"><span></span><small>{{ stage }}</small></div>
+      {% endfor %}
+    </div>
+    {% if agent_run.summary %}<div class="notice">{{ agent_run.summary }}</div>{% endif %}
+  </section>
+
+  <aside class="panel">
+    <div class="panel-title"><div><h2>安全边界</h2><small>Deterministic enforcement</small></div></div>
+    <div class="key-value">
+      <div><span>Scope engine</span><b class="ok-text">ENFORCED</b></div>
+      <div><span>Unknown actions</span><b>DENY</b></div>
+      <div><span>Auto classes</span><b>READ_ONLY / LOW_RISK</b></div>
+      <div><span>AI response body</span><b>{{ 'ON' if ai_include_response_body|default(false) else 'OFF' }}</b></div>
+    </div>
+  </aside>
+</div>
+
+<section class="panel flush">
+  <div class="panel-title"><div><h2>Agent 事件流</h2><small>Newest event first</small></div></div>
+  <div class="event-stream" id="agentEventStream">
+    {% for e in agent_events %}
+    <div class="event-row filter-row">
+      <div class="event-marker {{ e.status }}"></div>
+      <div class="event-meta"><span>{{ e.stage }}</span><small>{{ e.event_type }}</small></div>
+      <div class="event-copy"><b>{{ e.title }}</b><p>{{ e.detail }}</p></div>
+      <span class="policy-tag">{{ e.policy_class }}</span>
+    </div>
+    {% else %}<div class="empty">No events.</div>{% endfor %}
+  </div>
+</section>
+
+<section class="panel flush skill-agent-trace">
+  <div class="panel-title"><div><h2>Skill 执行轨迹</h2><small>Deterministic Skill router output</small></div><a href="/projects/{{ project.id }}/skills">技能中心 →</a></div>
+  <div class="dense-table">
+    <div class="dense-head grid-agent-skill"><span>状态</span><span>Skill</span><span>Stage</span><span>目标</span><span>Output</span></div>
+    {% for sr in skill_runs %}
+    <div class="dense-row grid-agent-skill filter-row">
+      <span><span class="run-state {{ sr.status }}">{{ sr.status }}</span></span>
+      <span>{{ skill_map.get(sr.skill_id).name if skill_map.get(sr.skill_id) else 'Skill #' ~ sr.skill_id }}</span>
+      <span>{{ sr.stage }}</span>
+      <span class="mono truncate">{{ sr.target }}</span>
+      <span class="mono truncate">{{ sr.output_summary_json }}</span>
+    </div>
+    {% else %}<div class="empty small">No Skill execution records.</div>{% endfor %}
+  </div>
+</section>
+
+<section class="panel flush">
+  <div class="panel-title"><div><h2>运行历史</h2><small>{{ runs|length }} recent run(s)</small></div></div>
+  <div class="dense-table">
+    <div class="dense-head grid-runs"><span>ID</span><span>状态</span><span>目标</span><span>Stage</span><span>Summary</span></div>
+    {% for r in runs %}
+    <div class="dense-row grid-runs filter-row"><span>#{{ r.id }}</span><span><span class="run-state {{ r.status }}">{{ r.status }}</span></span><span class="mono truncate">{{ r.target }}</span><span>{{ r.stage }}</span><span class="truncate">{{ r.summary or r.mission }}</span></div>
+    {% endfor %}
+  </div>
+</section>
+{% else %}
+<div class="empty hero-empty">No agent run yet. Start an authorized assessment from 概览.</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>window.PROJECT_ID={{ project.id }};window.ENABLE_AGENT_POLLING=true;</script>
+{% endblock %}

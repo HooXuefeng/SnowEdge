@@ -1,0 +1,12 @@
+{% if project %}
+<div id="assistantBackdrop" class="assistant-backdrop" hidden></div>
+<aside id="assistantDrawer" class="assistant-drawer" role="dialog" aria-modal="true" aria-labelledby="assistantTitle" data-project-id="{{ project.id }}" hidden>
+<header><div><span class="mini-label">{{ project.name }}</span><h2 id="assistantTitle">AI 随行助手</h2></div><button type="button" class="btn" id="assistantClose" aria-label="关闭 AI 助手">×</button></header>
+<div class="assistant-body"><p class="assistant-context">读取当前项目的脱敏证据与测试覆盖信息。建议由你选择进入对应工具执行。</p><div id="assistantMode">{% if ai_provider == 'mock' %}当前为演示模式。连接 AI 服务后可获得实际模型分析。{% endif %}</div>
+<div class="assistant-chips"><button type="button" data-assistant-question="根据项目现有证据，建议下一步最值得做的三件事，并说明依据。">下一步做什么</button><button type="button" data-assistant-question="解释最近的诊断证据，并说明哪些结论还需要进一步验证。">解释诊断结果</button><button type="button" data-assistant-question="检查当前漏洞与交付证据的缺口，列出需要补充的内容。">检查证据缺口</button></div>
+<div id="assistantStatus" role="status" aria-live="polite">输入一个问题，或选择上面的提问方向。</div>
+<section id="assistantResponse" hidden><h3 id="assistantAsked"></h3><div id="assistantAnswer"></div><div id="assistantGaps"></div><div id="assistantCitations"></div><a class="btn" id="assistantFull" href="/projects/{{ project.id }}/copilot">查看完整问答</a></section>
+</div>
+<form id="assistantForm"><label for="assistantQuestion">想让 AI 帮你看什么？</label><textarea id="assistantQuestion" maxlength="3000" rows="3" required placeholder="例如：这个响应头说明了什么，还缺哪些验证？"></textarea><div><a href="/setup">AI 配置</a><button class="btn primary" id="assistantSubmit" type="submit">发送问题</button></div></form>
+</aside>
+{% endif %}

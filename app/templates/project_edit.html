@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}编辑项目 · SnowEdge{% endblock %}
+{% block content %}
+<div class="page-title-row"><div><h1>{{ '确认项目修改' if review else '编辑项目与授权范围' }}</h1><p>保留已有资产、漏洞和证据；授权范围改变时会取消尚未执行的旧任务。</p></div><a class="btn" href="/projects/{{ project.id }}/workbench">回到工作台</a></div>
+{% if error %}<p class="notice" role="alert">{{ error }}</p>{% endif %}{% if request.query_params.get('saved') %}<p class="notice success">修改已保存并记录审计。</p>{% endif %}
+<section class="panel scan-panel"><form method="post">
+{% if review %}<input type="hidden" name="confirm" value="yes"><input type="hidden" name="approval" value="{{ approval }}">{% for key,val in fields.items() %}<input type="hidden" name="{{ key }}" value="{{ val }}">{% endfor %}
+<div class="scan-pair"><div><h2>修改前</h2><p>{{ before.name }}</p><pre>{{ before.scope_text }}</pre></div><div><h2>修改后</h2><p>{{ fields.name }}</p><pre>{{ fields.scope_text }}</pre></div></div>
+<p>客户：{{ fields.client_name or '未填写' }} · 环境：{{ fields.environment }} · {{ fields.start_date }} — {{ fields.end_date }}</p><pre>{{ fields.authorization_note }}</pre><button class="btn primary" type="submit">确认保存项目与授权范围</button><a class="btn" href="/projects/{{ project.id }}/edit">重新编辑</a>
+{% else %}
+<label>项目名 *<input name="name" value="{{ fields.name }}" maxlength="200" required></label><div class="scan-pair"><label>客户名称<input name="client_name" value="{{ fields.client_name }}" maxlength="240"></label><label>环境<input name="environment" value="{{ fields.environment }}" maxlength="80"></label></div><div class="scan-pair"><label>开始日期<input name="start_date" type="date" value="{{ fields.start_date }}"></label><label>结束日期<input name="end_date" type="date" value="{{ fields.end_date }}"></label></div>
+<label>目标范围（每行一项）*<textarea name="scope_text" rows="7" required maxlength="32000">{{ fields.scope_text }}</textarea></label><p>支持完整 HTTP/HTTPS URL、域名、*.子域名、IP 或 CIDR。单独填写 * 表示不限制扫描目标。</p><label>授权说明<textarea name="authorization_note" rows="4" maxlength="20000">{{ fields.authorization_note }}</textarea></label><button class="btn primary" type="submit">预览修改并确认</button>
+{% endif %}</form></section><link rel="stylesheet" href="/static/scan-center.css">
+<details class="panel"><summary>项目修改记录</summary>{% for item in history %}<pre>{{ item.value_json|audit_zh }}</pre>{% else %}<p>暂无修改记录。</p>{% endfor %}</details>
+{% endblock %}

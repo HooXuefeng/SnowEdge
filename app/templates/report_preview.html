@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}正式报告预览 · SnowEdge{% endblock %}
+{% block content %}
+<div class="page-title-row"><div><h1>正式报告预览</h1><p>{{ snapshot.project }} · V{{ snapshot.report_version }} · {{ snapshot.created_at }}</p></div><a class="btn" href="/projects/{{ project.id }}/reports">返回报告中心</a></div>
+<div class="action-row">{% for fmt in ['pdf','html','json','csv','docx'] %}<a class="btn" href="/projects/{{ project.id }}/reports/delivery/{{ sid }}/{{ fmt }}">导出 {{ fmt|upper }}</a>{% endfor %}</div>
+<p>按真实 PDF 分页展示，页眉、页脚、图注和页码与导出一致。</p>
+<div class="report-preview-toolbar"><label>缩放 <input id="previewZoom" type="range" min="60" max="150" value="100"><output id="previewZoomValue">100%</output></label><label>跳转到第 <input id="previewPage" type="number" min="1" value="1" disabled> 页</label><button class="btn" id="previewGo" disabled>跳转</button></div>
+<p id="previewStatus" role="status">正在生成正式报告页面…</p>
+<div id="reportPages" class="report-pages" data-url="/projects/{{ project.id }}/reports/delivery/{{ sid }}/preview/pages" aria-label="A4 正式报告分页预览"></div>
+<noscript>请启用 JavaScript 查看分页预览，或使用上方按钮下载报告。</noscript>
+<script src="/static/report-preview.js" defer></script>
+<p class="context-help">内容摘要：{{ sha256 }}。后续修改请重新生成版本，当前版本不会变化。</p>
+<link rel="stylesheet" href="/static/report-center.css">
+{% endblock %}

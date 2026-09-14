@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}任务中心 · {{ project.name }}{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 任务中心{% endblock %}
+{% block content %}
+<div class="page-title-row compact">
+  <div>
+    <div class="mini-label">PERSISTENT JOB ENGINE</div>
+    <h1>任务中心</h1>
+    <p>统一管理扫描、浏览器观察、AI 助手、专家团队和复测任务。应用重启后，未完成任务会恢复到队列。</p>
+  </div>
+  <div class="scope-badge"><span class="status-dot ok"></span>持久化队列 · 超时 · 重试 · 取消 · 授权范围快照</div>
+</div>
+
+<section class="metric-strip six">
+  <div><span>等待执行</span><b>{{ job_counts.get('queued',0) }}</b></div>
+  <div><span>执行中</span><b>{{ job_counts.get('running',0) }}</b></div>
+  <div><span>等待重试</span><b>{{ job_counts.get('retry_wait',0) }}</b></div>
+  <div><span>已完成</span><b>{{ job_counts.get('done',0) }}</b></div>
+  <div><span>失败</span><b>{{ job_counts.get('error',0) }}</b></div>
+  <div><span>已取消</span><b>{{ job_counts.get('cancelled',0) }}</b></div>
+</section>
+
+<section class="resource-gate-strip">
+  {% for name,gate in resource_gates.items() %}<div><span>{{ name }} gate</span><b>{{ gate.running }} / {{ gate.limit }}</b></div>{% endfor %}
+</section>
+
+<div class="job-center-layout">
+  <section class="panel flush">
+    <div class="panel-title">
+      <div><h2>任务队列</h2><small>{{ jobs|length }} 条记录</small></div>
+      <form method="get" action="/projects/{{ project.id }}/jobs">
+        <select name="status" class="select-control" onchange="this.form.submit()">
+          <option value="">全部状态</option>
+          {% for s in ['queued','running','retry_wait','done','error','cancelled','cancel_requested'] %}
+          <option value="{{ s }}" {% if selected_status==s %}selected{% endif %}>{{ s|status_zh }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+    <div class="datagrid-toolbar" data-grid-toolbar="jobsGrid"><input class="grid-search" data-grid-search placeholder="筛选 Job 类型、目标、状态、Worker…"><button class="btn" type="button" data-grid-export>导出 CSV</button><button class="btn" type="button" data-grid-save-view>保存视图</button><span class="grid-count"></span></div>
+    <div class="dense-table unified-grid" data-datagrid id="jobsGrid" data-grid-key="project-{{ project.id }}-jobs">
+      <div class="dense-head grid-jobs"><button data-sort-key="id">ID</button><button data-sort-key="status">状态</button><button data-sort-key="kind">任务类型</button><button data-sort-key="target">目标</button><button data-sort-key="attempts">尝试</button><button data-sort-key="timeout">超时</button><button data-sort-key="time">创建时间</button></div>
+      {% for j in jobs %}
+      <a class="dense-row grid-jobs filter-row {% if selected_job and selected_job.id==j.id %}selected{% endif %}" data-grid-row data-id="{{ j.id }}" data-status="{{ j.status }}" data-kind="{{ j.kind }}" data-target="{{ j.target|lower }}" data-attempts="{{ j.attempts }}" data-timeout="{{ j.timeout_seconds }}" data-time="{{ j.created_at.timestamp() if j.created_at else 0 }}" href="/projects/{{ project.id }}/jobs?selected={{ j.id }}{% if selected_status %}&status={{ selected_status }}{% endif %}">
+        <span>#{{ j.id }}</span>
+        <span><span class="run-state {{ j.status }}">{{ j.status|status_zh }}</span></span>
+        <span>{{ j.kind|job_kind_zh }}</span>
+        <span class="mono truncate">{{ j.target or '—' }}</span>
+        <span>{{ j.attempts }}/{{ j.max_attempts }}</span>
+        <span>{{ j.timeout_seconds }}s</span>
+        <span>{{ j.created_at.strftime('%m-%d %H:%M:%S') if j.created_at else '' }}</span>
+      </a>
+      {% else %}<div class="empty">暂无持久化任务。</div>{% endfor %}
+    </div>
+  </section>
+
+  <aside class="job-detail-panel">
+    {% if selected_job %}
+    <section class="panel">
+      <div class="mini-label">任务 #{{ selected_job.id }}</div>
+      <div class="job-detail-head"><b>{{ selected_job.kind|job_kind_zh }}</b><span class="run-state {{ selected_job.status }}">{{ selected_job.status|status_zh }}</span></div>
+      <code>{{ selected_job.target or '—' }}</code>
+      <div class="key-value">
+        <div><span>优先级</span><b>{{ selected_job.priority }}</b></div>
+        <div><span>尝试次数</span><b>{{ selected_job.attempts }}/{{ selected_job.max_attempts }}</b></div>
+        <div><span>超时</span><b>{{ selected_job.timeout_seconds }} 秒</b></div>
+        <div><span>Scope Hash</span><b>{{ selected_job.scope_hash[:10] }}…</b></div>
+        <div><span>工作进程</span><b>{{ selected_job.worker_id or "未领取" }}</b></div>
+        <div><span>Lease</span><b>{{ selected_job.lease_expires_at.strftime("%H:%M:%S") if selected_job.lease_expires_at else "—" }}</b></div>
+      </div>
+      {% if selected_job.error %}<div class="notice error">{{ selected_job.error }}</div>{% endif %}
+      <div class="action-row">
+        {% if selected_job.status in ['queued','running','retry_wait','cancel_requested'] %}
+        <form method="post" action="/projects/{{ project.id }}/jobs/{{ selected_job.id }}/cancel"><button class="btn" type="submit">取消任务</button></form>
+        {% endif %}
+        {% if selected_job.status in ['error','cancelled'] %}
+        <form method="post" action="/projects/{{ project.id }}/jobs/{{ selected_job.id }}/retry"><button class="btn primary" type="submit">重新入队</button></form>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="panel flush">
+      <div class="panel-title"><div><h2>任务审计事件</h2><small>仅追加审计日志</small></div></div>
+      <div class="job-event-list">
+        {% for e in job_events %}
+        <div><span>#{{ e.id }}</span><div><b>{{ e.event_type }} · {{ e.status|status_zh }}</b><small>{{ e.detail }}</small></div></div>
+        {% else %}<div class="empty small">暂无事件。</div>{% endfor %}
+      </div>
+    </section>
+    {% endif %}
+  </aside>
+</div>
+
+<section class="panel flush worker-panel">
+  <div class="panel-title"><div><h2>工作进程心跳</h2><small>独立工作进程 / Web 加速器状态</small></div></div>
+  <div class="dense-table">
+    <div class="dense-head grid-workers"><span>工作进程</span><span>状态</span><span>进程 ID</span><span>当前任务</span><span>心跳</span></div>
+    {% for w in job_workers %}
+    <div class="dense-row grid-workers"><span class="mono truncate">{{ w.worker_id }}</span><span><span class="run-state {{ w.status }}">{{ w.status }}</span></span><span>{{ w.pid }}</span><span>{% if w.active_job_id %}#{{ w.active_job_id }}{% else %}—{% endif %}</span><span>{{ w.heartbeat_age_seconds if w.heartbeat_age_seconds is not none else '—' }}s</span></div>
+    {% else %}<div class="empty small">尚未观察到 工作进程心跳。可运行 start-worker.bat。</div>{% endfor %}
+  </div>
+</section>
+
+{% endblock %}

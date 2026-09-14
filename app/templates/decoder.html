@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}数据分析 · SnowEdge{% endblock %}
+{% block content %}
+<div class="page-title-row"><div><h1>数据分析</h1><p>识别编码、Hash 与 Token。默认仅本地处理，不发送给 AI。</p></div></div>
+<div class="analysis-layout">
+<section class="panel"><form id="analysisForm"><label for="analysisInput">粘贴待分析内容</label><textarea id="analysisInput" rows="6" maxlength="32000" required placeholder="Base64、Hex 文本、JWT 或密码 Hash"></textarea><div class="action-row"><button class="btn primary">识别与分析</button><button class="btn" type="button" id="clearAnalysis">清空敏感内容</button><label><input type="checkbox" id="recursive" checked> 连续识别，最多 5 层</label></div></form><p id="analysisStatus" role="status" aria-live="polite">等待输入</p></section>
+<section class="panel" id="analysisResult" hidden><div class="panel-title"><h2 id="kindLabel"></h2><button class="btn" id="copyResult">复制结果</button></div><p id="analysisFacts"></p><p id="analysisReason"></p><div id="candidateChips" class="action-row"></div><p id="analysisChain"></p><pre id="analysisText"></pre></section>
+<section class="panel" id="hashPanel" hidden><h2>本地字典匹配</h2><p>Hash 不能直接解码。选择候选算法和字典，计算并比对；未命中不代表 Hash 无效。</p><div class="analysis-controls"><label>算法<select id="hashAlgorithm"></select></label><label>字典<select id="hashDictionary"></select></label><button class="btn primary" id="startMatch">开始本地匹配</button><button class="btn" id="cancelMatch" disabled>取消</button></div><p id="jobStatus" role="status" aria-live="polite"></p><pre id="matchResult"></pre><button class="btn" id="copyPlain" hidden>复制明文</button><button class="btn" id="copyHash">复制 Hash</button></section>
+<details class="panel"><summary>字典管理</summary><p>内置小型示例字典；导入的 UTF-8 TXT 仅保存在本机，默认禁用。最大 256 MB。</p><form id="importDictionary"><input type="file" id="dictionaryFile" accept=".txt" required><button class="btn">导入 TXT</button></form><p id="dictionaryStatus" role="status"></p><div id="dictionaryList"></div></details>
+<details class="panel" id="advancedPanel"><summary>高级分析与扩展</summary><h3>Hashcat 本地匹配</h3><p id="hashcatStatus"></p><label>攻击模式<select id="hashcatAttack"><option value="dictionary">字典匹配</option><option value="lowercase-rule">规则匹配：转小写</option></select></label><p id="hashcatMode"></p><button class="btn" id="startHashcat">使用 Hashcat</button><h3>联网查询 · 默认关闭</h3><p>当前没有内置第三方查询服务，不会自动发送 Hash。可通过 Provider 接口接入合法 API。</p><select id="lookupProvider" aria-label="联网查询服务"></select><button class="btn" id="lookupHash">联网查询</button><p id="onlineStatus" role="status"></p></details>
+</div>
+<link rel="stylesheet" href="/static/analysis.css"><script src="/static/hash-analysis.js" defer></script>
+{% endblock %}
