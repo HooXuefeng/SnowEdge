@@ -34,7 +34,7 @@ Coverage Matrix Summary | Remediation Summary | Remediation workflow | Report Pr
   <aside class="sidebar" id="workspaceNavigation" aria-label="工作台导航">
     <div class="sidebar-head">
       <a class="product-name" href="/"><img class="snowedge-mark" src="/static/brand/snowedge-app-64.png" alt=""><span>雪锋<small>SnowEdge</small></span></a>
-      <div class="product-version">V1.7.2</div>
+      <div class="product-version">V1.8.0</div>
     </div>
 
     {% if project %}
@@ -49,6 +49,7 @@ Coverage Matrix Summary | Remediation Summary | Remediation workflow | Report Pr
       {{ nav_link('workbench', '工作台', '/workbench') }}
       {{ nav_link('attack_surface', '资产', '/attack-surface') }}
       {{ nav_link('scan_center', '扫描中心', '/scan-center') }}
+      {{ nav_link('toolchain', '工具链', '/toolchain') }}
       {{ nav_link('requests', '请求', '/requests') }}
       {{ nav_link('authorization_matrix', '权限测试', '/authorization-matrix') }}
       {{ nav_link('findings', '发现', '/findings') }}
@@ -152,6 +153,7 @@ window.WORKSPACE_COMMANDS = [
   {title:"打开漏洞发现", keywords:"finding 漏洞", url:"/projects/{{ project.id }}/findings"},
   {title:"打开报告中心", keywords:"report 报告", url:"/projects/{{ project.id }}/reports"},
   {title:"打开资产智能", keywords:"fingerprint waf 指纹 资产", url:"/projects/{{ project.id }}/asset-intelligence"},
+  {title:"打开工具链", keywords:"toolchain nmap nuclei httpx katana 工具链", url:"/projects/{{ project.id }}/toolchain"},
   {title:"查看任务中心", keywords:"job task 任务 运行", url:"/projects/{{ project.id }}/jobs"},
   {title:"打开凭据保险库", keywords:"vault secret 凭据", url:"/vault?project_id={{ project.id }}"},
   {title:"打开项目备份", keywords:"backup 备份", url:"/projects/{{ project.id }}/backups"},

@@ -39,6 +39,7 @@ JOB_KIND_ZH = {
     "knowledge_refresh": "知识/记忆刷新",
     "authorization_matrix": "权限矩阵验证",
     "batch_scan": "批量安全评估",
+    "external_tool": "外部工具链",
 }
 
 templates.env.filters["status_zh"] = lambda value: STATUS_ZH.get(str(value), str(value))

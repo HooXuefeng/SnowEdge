@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}工具链 · 雪锋 SnowEdge{% endblock %}
+{% block breadcrumb %}{{ project.name }} / 工具链{% endblock %}
+{% block content %}
+<div id="toolchainApp" data-project="{{ project.id }}">
+  <div class="page-title-row">
+    <div><h1>工具链</h1><p>检测本机工具，通过受控预设执行，并将结果归入项目数据链。</p></div>
+    <a class="btn" href="/projects/{{ project.id }}/jobs">查看任务中心</a>
+  </div>
+  <div class="notice">所有任务执行前都会检查当前项目 Scope。这里只接受目标和端口，不能输入任意命令参数。</div>
+  <section class="toolchain-plan-grid">
+    {% for plan_id,plan in toolchain_plans.items() %}
+    <article class="panel tool-plan">
+      <div><span class="mini-label">一键流程</span><h2>{{ plan.name }}</h2><p>{{ plan.description }}</p></div>
+      <button class="btn" type="button" data-plan="{{ plan_id }}">选择此流程</button>
+    </article>
+    {% endfor %}
+  </section>
+  <section class="panel toolchain-launcher">
+    <div class="panel-title"><div><h2 id="toolRunTitle">运行单个工具</h2><small>结果自动进入 Asset、Service、Endpoint、Finding 和 Evidence。</small></div><button class="btn" id="singleToolMode" type="button" hidden>返回单工具</button></div>
+    <form id="toolRunForm" class="tool-run-grid">
+      <label id="toolSelectLabel">工具<select id="toolRunId" required></select></label>
+      <label>目标<input id="toolRunTarget" required placeholder="域名、IP 或 URL"></label>
+      <label id="toolPortsLabel">端口<input id="toolRunPorts" value="{{ default_ports }}"></label>
+      <button class="btn primary" id="toolRunButton" type="submit">加入任务队列</button>
+    </form>
+    <p id="toolRunStatus" role="status"></p>
+  </section>
+  <div class="toolchain-summary" id="toolchainSummary" aria-live="polite"></div>
+  <section class="toolchain-grid" id="toolchainGrid" aria-live="polite"><div class="panel tool-loading">正在检测本机工具…</div></section>
+</div>
+<link rel="stylesheet" href="/static/toolchain.css">
+<script src="/static/toolchain.js" defer></script>
+{% endblock %}

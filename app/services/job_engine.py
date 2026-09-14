@@ -44,6 +44,7 @@ ALLOWED_JOB_KINDS = {
     "knowledge_refresh",
     "authorization_matrix",
     "batch_scan",
+    "external_tool",
 }
 
 _claim_lock: asyncio.Lock | None = None
@@ -52,6 +53,7 @@ RESOURCE_CLASS_BY_KIND = {
     "scan_engine": "scan",
     "project_scan": "scan",
     "batch_scan": "scan",
+    "external_tool": "scan",
     "browser_observe": "browser",
     "copilot_query": "ai",
     "agent_team": "ai",
@@ -590,6 +592,7 @@ async def _handle_knowledge_refresh(db: Session, job: PersistentJob, project: Pr
 
 
 from .scan_engine import run_scan
+from .toolchain import run_external_tool
 
 HANDLERS = {
     "scan_engine": run_scan,
@@ -602,6 +605,7 @@ HANDLERS = {
     "knowledge_refresh": _handle_knowledge_refresh,
     "authorization_matrix": _handle_authorization_matrix,
     "batch_scan": _handle_batch_scan,
+    "external_tool": run_external_tool,
 }
 
 

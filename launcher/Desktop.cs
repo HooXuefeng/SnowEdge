@@ -9,10 +9,10 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
-[assembly: System.Reflection.AssemblyVersion("1.7.4.0")]
+[assembly: System.Reflection.AssemblyVersion("1.8.0.0")]
 [assembly: System.Reflection.AssemblyTitle("SnowEdge")]
 [assembly: System.Reflection.AssemblyProduct("SnowEdge")]
-[assembly: System.Reflection.AssemblyFileVersion("1.7.4.0")]
+[assembly: System.Reflection.AssemblyFileVersion("1.8.0.0")]
 
 class Desktop : Form {
     readonly string root = AppDomain.CurrentDomain.BaseDirectory;

@@ -2,6 +2,16 @@
 
 <p align="center"><img src="app/static/brand/snowedge-app.png" width="96" alt="SnowEdge"></p>
 
+## V1.8.0 — 统一工具链基础
+
+- 新增项目级工具链页面，检测 Nmap、Subfinder、Naabu、httpx、Katana 和 Nuclei 的安装路径与版本。
+- 支持保存各工具的自定义可执行文件路径，不在 SnowEdge 包内重复分发第三方二进制。
+- 新增受控外部工具 Job 类型，复用持久化队列、并发资源门、超时、取消、失败重试和 Scope 快照。
+- 工具执行只接受目标和端口，参数由适配器白名单生成，不开放任意命令行输入。
+- 增加 Nmap XML 与 ProjectDiscovery JSONL 解析，将结果写入现有 Asset、Service、Endpoint、Finding 和 Evidence 链路。
+- 工具标准输出限制为 8 MB，并对 Evidence 进行凭据脱敏和完整性哈希。
+- 提供基础设施识别、Web 深度评估、外部资产发现和单目标综合评估四种一键流程；缺失工具会明确跳过。
+
 ## 报告交付升级 - 2026-09-13
 
 - 扩展现有 Finding、Evidence 与固定交付快照，加入完整漏洞章节、HTTP 关联、证据编排、AI 引用草稿和复测时间线。

@@ -197,6 +197,8 @@ from .workflow_routes import router as workflow_router
 app.include_router(workflow_router)
 from .delivery_routes import router as delivery_router
 app.include_router(delivery_router)
+from .toolchain_routes import router as toolchain_router
+app.include_router(toolchain_router)
 templates = configure_templates(Jinja2Templates(directory=BASE_DIR / "templates"))
 
 

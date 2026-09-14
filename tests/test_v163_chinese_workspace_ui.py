@@ -63,12 +63,12 @@ def test_v163_health_and_chinese_navigation():
     with TestClient(app) as client:
         health=client.get("/api/health")
         assert health.status_code==200
-        assert health.json()["version"]=="1.7.2"
+        assert health.json()["version"]=="1.8.0"
         page=client.get(f"/projects/{pid}")
         assert page.status_code==200
         for marker in ["项目工作台","继续测试","资产与发现","分析与 AI","凭据保险库","搜索或执行命令"]:
             assert marker in page.text
-        assert "V1.7.2" in page.text
+        assert "V1.8.0" in page.text
 
 
 def test_v163_project_continue_testing_is_actionable():
