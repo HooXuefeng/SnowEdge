@@ -4,6 +4,8 @@
 
 <p align="center"><strong>资产发现 · 请求测试 · Evidence · AI 研判 · 报告交付</strong></p>
 
+<p align="center"><a href="LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0--or--later-4f46e5.svg" alt="GPL-3.0-or-later"></a></p>
+
 面向个人授权安全评估的工作台，集中管理资产、请求测试、漏洞、证据与报告，并提供 AI 辅助研判。
 
 **当前版本：1.8.1 · by SnowPeak**
@@ -122,7 +124,12 @@ python -m pytest -q
 请参阅 [参与开发](CONTRIBUTING.md)、[安全反馈](SECURITY.md) 和 [版本记录](CHANGELOG.md)。
 Docker 部署见 [部署说明](docs/DEPLOY_WEB_WORKER_POSTGRES.md)。
 
-## 版权与依赖
+## 开源许可证
 
-Copyright © 2026 SnowPeak。当前尚未指定开源许可证；公开源码不等于授予开源许可。
-第三方依赖与引用资料遵循各自许可证。仅在获得授权的范围内使用本项目。
+Copyright © 2026 SnowPeak。
+
+SnowEdge 以 **GNU General Public License v3.0 or later（GPL-3.0-or-later）** 开源。你可以使用、研究、修改和分发本项目；分发本项目或其修改版本时，需要提供对应源码、保留版权与许可证声明，并继续采用 GPLv3 或更高版本。完整法律文本见 [LICENSE](LICENSE)。
+
+第三方 Python 依赖、Microsoft WebView2、Burp Suite API 以及 Nmap、Subfinder、Naabu、httpx、Katana、Nuclei 等外部工具遵循各自许可证，详见 [第三方声明](THIRD_PARTY_NOTICES.md)。SnowEdge 不会改变这些组件的授权方式。
+
+许可证允许使用软件，但不代表获得对任何目标系统进行测试的授权。安全测试功能仅应在明确获准的范围内使用。

@@ -4,6 +4,7 @@
 
 ## V1.8.1 — 工具链流程编排
 
+- 正式采用 GPL-3.0-or-later 开源许可证，补充第三方组件与外部工具授权说明。
 - 一键流程改为持久化 ToolchainRun / ToolchainStep，步骤按依赖顺序执行。
 - Subfinder 资产、Naabu 端口、httpx 与 Katana URL 会自动传递给下一步适配器。
 - 流程页面展示整链状态、当前步骤、分步统计和失败原因，并支持失败步骤重试。
