@@ -197,10 +197,10 @@ def test_v14_v13_database_migrates_to_v14_head(tmp_path):
     bootstrap = "import sqlite3\n" + f"db=sqlite3.connect(r'{db_path}')\n" + f"db.executescript({sql!r})\n" + "db.commit();db.close()\n"
     subprocess.run([sys.executable, "-c", bootstrap], check=True)
     env = os.environ.copy(); env["DATABASE_URL"] = f"sqlite:///{db_path}"
-    code = ("from sqlalchemy import inspect\nfrom app.db import engine\nfrom app.schema_migrations import ensure_schema_current\nensure_schema_current()\ni=inspect(engine)\ntables=set(i.get_table_names())\ncols={c['name'] for c in i.get_columns('projects')}\nassert 'template_slug' in cols\nassert {'app_preferences','evidence_attachments','backup_records'} <= tables\nwith engine.connect() as c: rev=c.exec_driver_sql('SELECT version_num FROM alembic_version').scalar()\nassert rev=='v1_6_2_assetux'\nprint(rev)\n")
+    code = ("from sqlalchemy import inspect\nfrom app.db import engine\nfrom app.schema_migrations import ensure_schema_current\nensure_schema_current()\ni=inspect(engine)\ntables=set(i.get_table_names())\ncols={c['name'] for c in i.get_columns('projects')}\nassert 'template_slug' in cols\nassert {'app_preferences','evidence_attachments','backup_records'} <= tables\nwith engine.connect() as c: rev=c.exec_driver_sql('SELECT version_num FROM alembic_version').scalar()\nassert rev=='v1_8_toolchain_runs'\nprint(rev)\n")
     result = subprocess.run([sys.executable, "-c", code], cwd=str(Path(__file__).resolve().parents[1]), env=env, capture_output=True, text=True, timeout=120)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "v1_6_2_assetux" in result.stdout
+    assert "v1_8_toolchain_runs" in result.stdout
 
 
 def test_v14_quick_scan_setup_and_core_pages(monkeypatch):

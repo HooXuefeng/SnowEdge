@@ -3,7 +3,7 @@
 {% block breadcrumb %}{{ project.name }} / 扫描中心{% endblock %}
 {% block content %}
 <div id="scanCenter" data-project="{{ project.id }}">
-<div class="page-title-row"><div><h1>扫描中心</h1><p>目标 → 端口与服务 → HTTP 与指纹 → 规则验证 → 证据与发现</p></div><a class="btn" href="/projects/{{project.id}}/jobs">全部后台任务</a></div>
+<div class="page-title-row"><div><h1>扫描与工具链</h1><p>目标 → 端口与服务 → HTTP 与指纹 → 规则验证 → 证据与发现</p></div><div class="action-row"><a class="btn primary" href="/projects/{{project.id}}/toolchain">外部工具流程</a><a class="btn" href="/projects/{{project.id}}/jobs">全部后台任务</a></div></div>
 {% if '*' in scope_rules %}<div class="notice">当前项目为“不限制目标”模式，可输入任意域名、IP、URL 或小网段。单次任务仍受目标数、端口数和超时限制。</div>{% elif not scope_rules %}<div class="notice">当前项目尚未设置范围。如需扫描，请先前往 <a href="/projects/{{ project.id }}/edit">项目设置</a> 添加范围或填写 * 启用不限制目标模式。</div>{% endif %}
 <section class="panel scan-panel"><form id="unifiedScanForm"><label for="scanTargets">目标（每行一个域名、IP、URL 或小网段）</label><textarea id="scanTargets" rows="4" required placeholder="目标必须在当前项目授权范围内">{{ default_targets }}</textarea><div class="scan-stages">{% for key,label in [('ports','端口与服务'),('http','HTTP / Web 指纹 / WAF'),('rules','规则 / 未授权检查'),('discovery','目录 / JS / API 发现'),('subdomains','子域名解析')] %}<label><input type="checkbox" name="stage" value="{{key}}" {% if key in ['ports','http','rules'] %}checked{% endif %}> {{label}}</label>{% endfor %}</div><details><summary>端口与发现设置</summary><label for="scanPorts">端口（支持逗号与范围）</label><input id="scanPorts" value="{{default_ports}}"><label for="scanPaths">目录候选（每行一个，最多 40 项）</label><textarea id="scanPaths" rows="3">/robots.txt
 /sitemap.xml

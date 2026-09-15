@@ -91,7 +91,8 @@ def ensure_schema_current() -> dict:
     backup_columns = {c["name"] for c in inspector.get_columns("backup_records")} if "backup_records" in tables else set()
     looks_v16 = (looks_v15 and "secret_vault_items" in tables and "workspace_drafts" in tables and "recovery_events" in tables and "vault_item_id" in identity_columns and "detail_json" in backup_columns)
     looks_v162 = (looks_v16 and "technology_fingerprints" in tables and "fingerprint_rules" in tables and "scan_profiles" in tables and "network_route_profiles" in tables and "batch_assessments" in tables and "batch_assessment_items" in tables and "scan_profile_id" in project_columns and "network_route_profile_id" in project_columns)
-    if looks_v162:
+    looks_v18 = looks_v162 and "toolchain_runs" in tables and "toolchain_steps" in tables
+    if looks_v18:
         command.stamp(cfg, "head", purge=True)
         return {"mode": "current-schema-adopted", "revision": "head"}
 
@@ -111,7 +112,7 @@ def ensure_schema_current() -> dict:
     else:
         with engine.begin() as conn:
             current = conn.execute(text("SELECT version_num FROM alembic_version LIMIT 1")).scalar()
-        if current not in {"v1_1_legacy", "v1_2_core", "v1_3_enterprise", "v1_4_personal", "v1_5_workflow2", "v1_6_reliability", "v1_6_2_assetux"}:
+        if current not in {"v1_1_legacy", "v1_2_core", "v1_3_enterprise", "v1_4_personal", "v1_5_workflow2", "v1_6_reliability", "v1_6_2_assetux", "v1_8_toolchain_runs"}:
             if looks_v16:
                 command.stamp(cfg, "v1_6_reliability", purge=True)
             elif looks_v15:

@@ -379,7 +379,7 @@ def test_v12_legacy_schema_upgrades_to_alembic_head(tmp_path):
         "tables=set(i.get_table_names())\n"
         "assert {'persistent_jobs','endpoint_parameters','authorization_matrix_runs','finding_occurrences','alembic_version'} <= tables\n"
         "with engine.connect() as conn: rev=conn.exec_driver_sql('SELECT version_num FROM alembic_version').scalar()\n"
-        "assert rev == 'v1_6_2_assetux'\n"
+        "assert rev == 'v1_8_toolchain_runs'\n"
         "print(result, rev)\n"
     )
     result = subprocess.run(
@@ -391,7 +391,7 @@ def test_v12_legacy_schema_upgrades_to_alembic_head(tmp_path):
         timeout=120,
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "v1_6_2_assetux" in result.stdout
+    assert "v1_8_toolchain_runs" in result.stdout
 
 
 def test_v12_chinese_core_pages_render():

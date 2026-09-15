@@ -359,6 +359,9 @@ def cancel_job(db: Session, job: PersistentJob) -> PersistentJob:
     job.updated_at = _utcnow()
     db.commit()
     db.refresh(job)
+    if job.kind == "external_tool":
+        from .toolchain_workflow import sync_toolchain_job
+        sync_toolchain_job(db, job)
     return job
 
 
@@ -752,6 +755,9 @@ async def process_job(job_id: int, worker_id: str = "worker", lease_token: str =
             job.lease_expires_at = None
             job.heartbeat_at = _utcnow()
             db.commit()
+            if job.kind == "external_tool":
+                from .toolchain_workflow import sync_toolchain_job
+                sync_toolchain_job(db, job)
         except Exception as exc:
             db.rollback()
             job = db.get(PersistentJob, job_id)
@@ -786,6 +792,9 @@ async def process_job(job_id: int, worker_id: str = "worker", lease_token: str =
                 job.finished_at = _utcnow()
                 add_job_event(db, job, "failed", job.error)
             db.commit()
+            if job.kind == "external_tool" and job.status in TERMINAL_STATUSES:
+                from .toolchain_workflow import sync_toolchain_job
+                sync_toolchain_job(db, job)
     finally:
         if heartbeat_task:
             heartbeat_task.cancel()

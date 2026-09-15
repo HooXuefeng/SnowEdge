@@ -341,7 +341,12 @@ def ingest_tool_output(db: Session, project, job, tool_id: str, output: str, std
     content, redaction = safe_evidence_text({"tool": tool_id, "stdout": output[:1_000_000], "stderr": stderr[:100_000], "truncated": len(output) > 1_000_000})
     evidence = Evidence(project_id=project.id, job_id=job.id, source_type="external_tool", source_id=job.id, kind=f"tool_{tool_id}_output", content=content, redaction_state=redaction)
     db.add(evidence); db.commit(); ensure_evidence_integrity(db, evidence)
-    return {"tool": tool_id, "records": parsed["record_count"], "assets": len(asset_ids), "services": len(service_ids), "endpoints": len(endpoint_ids), "findings": len(finding_ids), "finding_ids": sorted(finding_ids), "evidence_id": evidence.id}
+    handoff = {
+        "assets": [{"target": item["target"], "kind": item["kind"]} for item in parsed["assets"] if item.get("target") and target_in_scope(item["target"], project.scope_text.splitlines())][:100],
+        "services": [{"target": item["target"], "port": item["port"], "protocol": item["protocol"]} for item in parsed["services"] if target_in_scope(item["target"], project.scope_text.splitlines())][:100],
+        "endpoints": [{"url": item["url"], "target": item["target"]} for item in parsed["endpoints"] if target_in_scope(item["url"], project.scope_text.splitlines())][:100],
+    }
+    return {"tool": tool_id, "records": parsed["record_count"], "assets": len(asset_ids), "services": len(service_ids), "endpoints": len(endpoint_ids), "findings": len(finding_ids), "finding_ids": sorted(finding_ids), "evidence_id": evidence.id, "handoff": handoff}
 
 
 async def run_external_tool(db: Session, job, project, payload: dict) -> dict:

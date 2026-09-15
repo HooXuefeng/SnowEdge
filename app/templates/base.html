@@ -34,7 +34,7 @@ Coverage Matrix Summary | Remediation Summary | Remediation workflow | Report Pr
   <aside class="sidebar" id="workspaceNavigation" aria-label="工作台导航">
     <div class="sidebar-head">
       <a class="product-name" href="/"><img class="snowedge-mark" src="/static/brand/snowedge-app-64.png" alt=""><span>雪锋<small>SnowEdge</small></span></a>
-      <div class="product-version">V1.8.0</div>
+      <div class="product-version">V1.8.1</div>
     </div>
 
     {% if project %}
@@ -48,8 +48,7 @@ Coverage Matrix Summary | Remediation Summary | Remediation workflow | Report Pr
     <nav class="primary-navigation" aria-label="常用功能">
       {{ nav_link('workbench', '工作台', '/workbench') }}
       {{ nav_link('attack_surface', '资产', '/attack-surface') }}
-      {{ nav_link('scan_center', '扫描中心', '/scan-center') }}
-      {{ nav_link('toolchain', '工具链', '/toolchain') }}
+      <a class="side-link {% if active_nav in ['scan_center','toolchain'] %}active{% endif %}" href="/projects/{{ project.id }}/scan-center">扫描与工具链</a>
       {{ nav_link('requests', '请求', '/requests') }}
       {{ nav_link('authorization_matrix', '权限测试', '/authorization-matrix') }}
       {{ nav_link('findings', '发现', '/findings') }}

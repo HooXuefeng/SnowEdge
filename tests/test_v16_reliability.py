@@ -164,7 +164,7 @@ def test_v16_v15_database_migrates_to_v16_head(tmp_path):
           "assert {'secret_vault_items','workspace_drafts','recovery_events'} <= set(i.get_table_names())\n"
           "assert 'vault_item_id' in {c['name'] for c in i.get_columns('identities')}\n"
           "assert 'detail_json' in {c['name'] for c in i.get_columns('backup_records')}\n"
-          "with engine.connect() as c: rev=c.exec_driver_sql('SELECT version_num FROM alembic_version').scalar()\nassert rev=='v1_6_2_assetux'\nprint(rev)\n")
+          "with engine.connect() as c: rev=c.exec_driver_sql('SELECT version_num FROM alembic_version').scalar()\nassert rev=='v1_8_toolchain_runs'\nprint(rev)\n")
     r=subprocess.run([sys.executable,'-c',code],cwd=str(Path(__file__).resolve().parents[1]),env=env,capture_output=True,text=True,timeout=120)
     assert r.returncode==0,r.stdout+r.stderr
-    assert 'v1_6_2_assetux' in r.stdout
+    assert 'v1_8_toolchain_runs' in r.stdout

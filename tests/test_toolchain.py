@@ -7,9 +7,10 @@ from fastapi.testclient import TestClient
 
 from app.db import Base, SessionLocal, engine
 from app.main import app
-from app.models import AppPreference, Asset, Evidence, PersistentJob, Project, Service
+from app.models import AppPreference, Asset, Evidence, PersistentJob, Project, Service, ToolchainRun, ToolchainStep
 from app.services.job_engine import enqueue_job
 from app.services.toolchain import _run_process, build_command, ingest_tool_output, parse_tool_output
+from app.services.toolchain_workflow import create_toolchain_run, sync_toolchain_job
 
 
 def _project() -> int:
@@ -92,7 +93,8 @@ def test_toolchain_page_path_configuration_and_scope_queue(tmp_path: Path, monke
         assert queued.status_code == 200
         plan = client.post(f"/api/projects/{pid}/toolchain-plans/infrastructure/run", json={"target": "example.test", "ports": "80,443"})
         assert plan.status_code == 200
-        assert [item["tool"] for item in plan.json()["jobs"]] == ["nmap"]
+        assert [item["tool_id"] for item in plan.json()["steps"]] == ["nmap"]
+        assert plan.json()["total_steps"] == 1
         assert plan.json()["skipped"] == [{"tool": "naabu", "reason": "未安装或未配置路径"}]
         with SessionLocal() as db:
             job = db.get(PersistentJob, queued.json()["id"])
@@ -100,3 +102,23 @@ def test_toolchain_page_path_configuration_and_scope_queue(tmp_path: Path, monke
             assert json.loads(job.payload_json) == {"tool_id": "nmap", "ports": [80, 443]}
             pref = db.query(AppPreference).filter_by(key="toolchain:path:nmap").one()
             assert json.loads(pref.value_json)["path"] == str(fake.resolve())
+
+
+def test_toolchain_steps_wait_and_pass_discovered_targets(monkeypatch):
+    pid = _project()
+    monkeypatch.setattr("app.services.toolchain_workflow.resolve_executable", lambda _db, tool_id: f"C:/Tools/{tool_id}.exe")
+    with SessionLocal() as db:
+        project = db.get(Project, pid)
+        run, skipped = create_toolchain_run(db, project, "surface", "example.test", [80, 443])
+        assert not skipped and run.status == "running"
+        steps = db.query(ToolchainStep).filter_by(run_id=run.id).order_by(ToolchainStep.position).all()
+        assert [step.status for step in steps] == ["running", "pending"]
+        first_job = db.get(PersistentJob, json.loads(steps[0].job_ids_json)[0])
+        first_job.status = "done"
+        first_job.result_json = json.dumps({"assets": 1, "handoff": {"assets": [{"target": "api.example.test", "kind": "domain"}], "services": [], "endpoints": []}})
+        db.commit(); sync_toolchain_job(db, first_job)
+        db.refresh(steps[0]); db.refresh(steps[1])
+        assert steps[0].status == "done" and steps[1].status == "running"
+        next_job = db.get(PersistentJob, json.loads(steps[1].job_ids_json)[0])
+        assert next_job.target == "api.example.test"
+        assert json.loads(next_job.payload_json)["toolchain_run_id"] == run.id

@@ -26,6 +26,10 @@
     </form>
     <p id="toolRunStatus" role="status"></p>
   </section>
+  <section class="panel toolchain-runs-panel">
+    <div class="panel-title"><div><h2>流程运行</h2><small>每一步在上一步完成后启动，发现结果会自动传递。</small></div><button class="btn" id="refreshRuns" type="button">刷新状态</button></div>
+    <div id="toolchainRuns" class="toolchain-runs"><div class="empty small">暂无流程记录。</div></div>
+  </section>
   <div class="toolchain-summary" id="toolchainSummary" aria-live="polite"></div>
   <section class="toolchain-grid" id="toolchainGrid" aria-live="polite"><div class="panel tool-loading">正在检测本机工具…</div></section>
 </div>

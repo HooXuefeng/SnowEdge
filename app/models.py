@@ -592,6 +592,45 @@ class PersistentJobEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
 
+class ToolchainRun(Base):
+    __tablename__ = "toolchain_runs"
+    __table_args__ = (Index("ix_toolchain_runs_project_created", "project_id", "created_at"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"))
+    plan_id: Mapped[str] = mapped_column(String(80))
+    name: Mapped[str] = mapped_column(String(200))
+    source_target: Mapped[str] = mapped_column(String(1200))
+    ports_json: Mapped[str] = mapped_column(Text, default="[]")
+    status: Mapped[str] = mapped_column(String(60), default="queued")
+    current_step: Mapped[int] = mapped_column(Integer, default=0)
+    total_steps: Mapped[int] = mapped_column(Integer, default=0)
+    summary_json: Mapped[str] = mapped_column(Text, default="{}")
+    error: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+
+class ToolchainStep(Base):
+    __tablename__ = "toolchain_steps"
+    __table_args__ = (Index("ix_toolchain_steps_run_position", "run_id", "position", unique=True),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    run_id: Mapped[int] = mapped_column(ForeignKey("toolchain_runs.id"))
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"))
+    position: Mapped[int] = mapped_column(Integer)
+    tool_id: Mapped[str] = mapped_column(String(80))
+    status: Mapped[str] = mapped_column(String(60), default="pending")
+    input_json: Mapped[str] = mapped_column(Text, default="[]")
+    job_ids_json: Mapped[str] = mapped_column(Text, default="[]")
+    result_json: Mapped[str] = mapped_column(Text, default="{}")
+    error: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+
 class AuthorizationMatrixRun(Base):
     __tablename__ = "authorization_matrix_runs"
     id: Mapped[int] = mapped_column(primary_key=True)

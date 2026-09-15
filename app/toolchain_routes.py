@@ -9,10 +9,11 @@ from sqlalchemy.orm import Session
 from starlette.requests import Request
 
 from .db import get_db
-from .models import Project
+from .models import Project, ToolchainRun, ToolchainStep
 from .services.job_engine import enqueue_job
 from .services.scan_engine import DEFAULT_PORTS, parse_ports, parse_targets
 from .services.toolchain import CATALOG_BY_ID, PLANS, catalog_status, resolve_executable, save_configured_path
+from .services.toolchain_workflow import create_toolchain_run, retry_toolchain_step, run_payload
 from .ui_i18n import configure_templates
 
 
@@ -95,19 +96,36 @@ def start_plan(project_id: int, plan_id: str, data: ToolRunInput, db: Session = 
             raise ValueError("工具链方案一次只接受一个目标。")
         source_target = targets[0]
         ports = parse_ports(data.ports)
-        jobs = []
-        skipped = []
-        for tool_id in plan["tools"]:
-            tool = CATALOG_BY_ID[tool_id]
-            if not resolve_executable(db, tool_id):
-                skipped.append({"tool": tool_id, "reason": "未安装或未配置路径"})
-                continue
-            target = f"https://{source_target}" if tool.needs_url and "://" not in source_target else source_target
-            payload = {"tool_id": tool_id, "ports": ports if tool.accepts_ports else [], "plan_id": plan_id}
-            job = enqueue_job(db, project, "external_tool", target=target, payload=payload, timeout_seconds=900)
-            jobs.append({"id": job.id, "tool": tool_id, "target": target})
-        if not jobs:
-            raise ValueError("该方案所需工具均未安装，请先配置至少一个工具。")
+        run, skipped = create_toolchain_run(db, project, plan_id, source_target, ports)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
-    return {"plan": plan_id, "name": plan["name"], "jobs": jobs, "skipped": skipped}
+    payload = run_payload(db, run)
+    payload.update(plan=plan_id, skipped=skipped)
+    return payload
+
+
+@router.get("/api/projects/{project_id}/toolchain-runs")
+def list_toolchain_runs(project_id: int, db: Session = Depends(get_db)):
+    _project(db, project_id)
+    rows = db.query(ToolchainRun).filter_by(project_id=project_id).order_by(ToolchainRun.id.desc()).limit(30).all()
+    return [run_payload(db, row) for row in rows]
+
+
+@router.get("/api/projects/{project_id}/toolchain-runs/{run_id}")
+def get_toolchain_run(project_id: int, run_id: int, db: Session = Depends(get_db)):
+    run = db.get(ToolchainRun, run_id)
+    if not run or run.project_id != project_id:
+        raise HTTPException(404, "工具链运行不存在。")
+    return run_payload(db, run)
+
+
+@router.post("/api/projects/{project_id}/toolchain-runs/{run_id}/steps/{step_id}/retry")
+def retry_toolchain_run_step(project_id: int, run_id: int, step_id: int, db: Session = Depends(get_db)):
+    run, step = db.get(ToolchainRun, run_id), db.get(ToolchainStep, step_id)
+    if not run or run.project_id != project_id or not step or step.run_id != run.id:
+        raise HTTPException(404, "工具链步骤不存在。")
+    try:
+        retry_toolchain_step(db, run, step)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return run_payload(db, run)

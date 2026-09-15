@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
-VERSION='1.8.0'
+VERSION='1.8.1'
 TREES={'app':{'.py','.html','.css','.js','.svg','.png','.ico'},'migrations':{'.py','.mako'},'skills/builtin':{'.md','.json','.yaml','.yml'}}
 FILES=['data/passwords/common.txt','run.py','worker.py','alembic.ini','scripts/desktop-server.py','scripts/db-upgrade.py','scripts/apply-pending-restore.py','tools/setup-runtime.ps1',
        'Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll','WebView2Loader.dll','SnowEdge.exe.config',
@@ -40,7 +40,7 @@ def build(output):
         manifest.append({'path':relative,'sha256':hashlib.sha256(destination.read_bytes()).hexdigest(),'bytes':destination.stat().st_size})
     requirements=[line for line in (ROOT/'requirements.txt').read_text().splitlines() if not line.lower().startswith('pytest')]
     (stage/'requirements.txt').write_text('\n'.join(requirements)+'\n',encoding='utf-8')
-    (stage/'README.txt').write_text('雪锋 SnowEdge V1.8.0\n\n双击 SnowEdge.exe。首次启动需要 Python 3.11+、网络和 WebView2；程序自动在本机创建运行环境。\n本包不包含 .env、预制虚拟环境、数据库、备份、日志或历史项目。首次运行自动生成独立应用密钥。\n\n已有用户请先保留整个原工作目录及备份，勿删除原 .env 或 .runtime/app-secret，否则已有加密数据可能无法解密。\n扫描边界见 docs/SCAN_CENTER.md，外部工具适配见 docs/TOOLCHAIN.md。\n',encoding='utf-8')
+    (stage/'README.txt').write_text('雪锋 SnowEdge V1.8.1\n\n双击 SnowEdge.exe。首次启动需要 Python 3.11+、网络和 WebView2；程序自动在本机创建运行环境。\n本包不包含 .env、预制虚拟环境、数据库、备份、日志或历史项目。首次运行自动生成独立应用密钥。\n\n已有用户请先保留整个原工作目录及备份，勿删除原 .env 或 .runtime/app-secret，否则已有加密数据可能无法解密。\n扫描边界见 docs/SCAN_CENTER.md，外部工具适配见 docs/TOOLCHAIN.md。\n',encoding='utf-8')
     for name in ('requirements.txt','README.txt'):
         path=stage/name
         manifest.append({'path':name,'sha256':hashlib.sha256(path.read_bytes()).hexdigest(),'bytes':path.stat().st_size})

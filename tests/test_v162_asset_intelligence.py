@@ -234,7 +234,7 @@ def test_v162_v16_database_migrates_to_v162_head(tmp_path):
     code=("from sqlalchemy import inspect\nfrom app.db import engine\nfrom app.schema_migrations import ensure_schema_current\nensure_schema_current()\ni=inspect(engine)\n"
           "tables=set(i.get_table_names())\nassert {'technology_fingerprints','fingerprint_rules','scan_profiles','network_route_profiles','batch_assessments','batch_assessment_items'} <= tables\n"
           "cols={c['name'] for c in i.get_columns('projects')}\nassert {'scan_profile_id','network_route_profile_id'} <= cols\n"
-          "with engine.connect() as c: rev=c.exec_driver_sql('SELECT version_num FROM alembic_version').scalar()\nassert rev=='v1_6_2_assetux'\nprint(rev)\n")
+          "with engine.connect() as c: rev=c.exec_driver_sql('SELECT version_num FROM alembic_version').scalar()\nassert rev=='v1_8_toolchain_runs'\nprint(rev)\n")
     r=subprocess.run([sys.executable,'-c',code],cwd=str(Path(__file__).resolve().parents[1]),env=env,capture_output=True,text=True,timeout=120)
     assert r.returncode==0,r.stdout+r.stderr
-    assert 'v1_6_2_assetux' in r.stdout
+    assert 'v1_8_toolchain_runs' in r.stdout

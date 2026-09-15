@@ -334,7 +334,7 @@ def test_v15_v14_database_migrates_to_v15_head(tmp_path):
         "assert 'stored_request_revisions' in tables\n"
         "assert {'annotation_json','sort_order'} <= cols\n"
         "with engine.connect() as c: rev=c.exec_driver_sql('SELECT version_num FROM alembic_version').scalar()\n"
-        "assert rev=='v1_6_2_assetux'\n"
+        "assert rev=='v1_8_toolchain_runs'\n"
         "print(rev)\n"
     )
     result = subprocess.run(
@@ -346,7 +346,7 @@ def test_v15_v14_database_migrates_to_v15_head(tmp_path):
         timeout=120,
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "v1_6_2_assetux" in result.stdout
+    assert "v1_8_toolchain_runs" in result.stdout
 
 
 def test_v15_browser2_runtime_metadata_renders_without_secret_values():

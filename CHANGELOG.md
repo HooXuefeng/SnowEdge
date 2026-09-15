@@ -2,6 +2,13 @@
 
 <p align="center"><img src="app/static/brand/snowedge-app.png" width="96" alt="SnowEdge"></p>
 
+## V1.8.1 — 工具链流程编排
+
+- 一键流程改为持久化 ToolchainRun / ToolchainStep，步骤按依赖顺序执行。
+- Subfinder 资产、Naabu 端口、httpx 与 Katana URL 会自动传递给下一步适配器。
+- 流程页面展示整链状态、当前步骤、分步统计和失败原因，并支持失败步骤重试。
+- 每一步最多接收 100 个去重目标，传递 URL 会移除查询参数与片段，避免敏感值进入任务载荷。
+- “工具链”收入口径并入“扫描与工具链”，减少一级导航概念重叠。
 ## V1.8.0 — 统一工具链基础
 
 - 新增项目级工具链页面，检测 Nmap、Subfinder、Naabu、httpx、Katana 和 Nuclei 的安装路径与版本。

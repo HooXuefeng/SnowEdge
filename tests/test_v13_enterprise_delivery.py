@@ -354,7 +354,7 @@ def test_v13_v12_database_migrates_to_v13_head(tmp_path):
         "assert 'finding_state' in finding_cols\n"
         "assert {'job_workers','evidence_provenance','import_batches','import_records'} <= tables\n"
         "with engine.connect() as conn: rev=conn.exec_driver_sql('SELECT version_num FROM alembic_version').scalar()\n"
-        "assert rev == 'v1_6_2_assetux'\n"
+        "assert rev == 'v1_8_toolchain_runs'\n"
         "print(result, rev)\n"
     )
     result = subprocess.run(
@@ -366,7 +366,7 @@ def test_v13_v12_database_migrates_to_v13_head(tmp_path):
         timeout=120,
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "v1_6_2_assetux" in result.stdout
+    assert "v1_8_toolchain_runs" in result.stdout
 
 def test_v13_routes_worker_import_evidence_and_word_report():
     Base.metadata.create_all(bind=engine)
