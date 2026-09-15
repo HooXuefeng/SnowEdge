@@ -494,18 +494,26 @@ def _snowforge_text(record: dict, key: str, limit: int) -> str:
 
 
 def import_snowforge_json(db: Session, project: Project, filename: str, raw: bytes) -> ImportBatch:
-    """Import SnowRelay's passive, password-free interchange package."""
+    """Import a passive, password-free Snow toolchain interchange package."""
     batch = _new_batch(db, project, "snowforge_json", filename, raw)
     try:
         package = json.loads(raw.decode("utf-8"))
         if not isinstance(package, dict) or package.get("schema") != "snowedge-import/1":
-            raise ValueError("不是受支持的 SnowRelay / SnowEdge 联动包。")
+            raise ValueError("不是受支持的 Snow 工具链 / SnowEdge 联动包。")
         producer = package.get("producer") or {}
-        if not isinstance(producer, dict) or producer.get("name") not in {"SnowRelay", "SnowForge"}:
+        if not isinstance(producer, dict) or producer.get("name") not in {"SnowRelay", "SnowForge", "SnowLens"}:
             raise ValueError("联动包生产者标识无效。")
         producer_name = producer["name"]
-        import_source = "snowrelay_import" if producer_name == "SnowRelay" else "snowforge_import"
-        evidence_kind = "snowrelay_normalized_record" if producer_name == "SnowRelay" else "snowforge_normalized_record"
+        import_source = {
+            "SnowRelay": "snowrelay_import",
+            "SnowForge": "snowforge_import",
+            "SnowLens": "snowlens_import",
+        }[producer_name]
+        evidence_kind = {
+            "SnowRelay": "snowrelay_normalized_record",
+            "SnowForge": "snowforge_normalized_record",
+            "SnowLens": "snowlens_exposure_signal",
+        }[producer_name]
         records = package.get("records")
         if not isinstance(records, list):
             raise ValueError("联动包 records 必须是数组。")
@@ -515,7 +523,7 @@ def import_snowforge_json(db: Session, project: Project, filename: str, raw: byt
         if declared is not None and declared != len(records):
             raise ValueError("联动包记录数量与声明不一致。")
         if any(isinstance(row, dict) and str(row.get("password") or "").strip() for row in records):
-            raise ValueError("联动包包含口令明文，已拒绝导入。请使用 SnowRelay v0.5.0 或更高版本重新导出。")
+            raise ValueError("联动包包含口令明文，已拒绝导入。请使用支持敏感值遮罩的 Snow 工具重新导出。")
 
         seen = imported = skipped = assets_imported = services_imported = findings_imported = 0
         severity_map = {
@@ -600,7 +608,7 @@ def import_snowforge_json(db: Session, project: Project, filename: str, raw: byt
                     title=title,
                     severity=severity_map.get(severity_raw, "info"),
                     target=asset_target,
-                    description=_snowforge_text(record, "description", 12000) or "由 SnowRelay 标准化结果导入，等待分析人员复核。",
+                    description=_snowforge_text(record, "description", 12000) or f"由 {producer_name} 导入，等待分析人员复核。",
                     recommendation=_snowforge_text(record, "recommendation", 8000),
                     source=import_source,
                     evidence_kind=evidence_kind,

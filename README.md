@@ -55,7 +55,7 @@ mindmap
 
 ## 主要功能
 
-- 统一工具链：检测并调度 Nmap、Subfinder、Naabu、httpx、Katana、Nuclei，通过现有 Scope 与 Job Queue 将 XML/JSONL 结果关联到 Asset、Service、Endpoint、Finding 和 Evidence。详见 [工具链说明](docs/TOOLCHAIN.md)。
+- 统一工具链：检测并调度 Nmap、Subfinder、Naabu、httpx、Katana、Nuclei，并接收 SnowLens、SnowRelay 被动联动包，通过现有 Scope 与 Job Queue 将结果关联到 Asset、Service、Endpoint、Finding 和 Evidence。详见 [工具链说明](docs/TOOLCHAIN.md)。
 - 项目与授权范围管理、资产整理、全局和项目代理。
 - 扫描中心：TCP 端口探测、服务识别、HTTP 探测、Web 指纹、目录与 JS/API 发现、子域名发现；持久化任务、暂停、恢复与重试。
 - 请求工作台：请求编辑、重放、版本与草稿、Burp 导入、身份和权限测试。

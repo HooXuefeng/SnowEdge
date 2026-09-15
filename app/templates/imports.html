@@ -3,7 +3,7 @@
 {% block breadcrumb %}{{ project.name }} / 被动结果导入{% endblock %}
 {% block content %}
 <div class="page-title-row compact">
-  <div><div class="mini-label">PASSIVE IMPORT</div><h1>被动结果导入</h1><p>导入已有 SnowRelay、Burp、Nmap、Nuclei 结果并映射为 SnowEdge 项目数据。此功能只解析上传文件，不会执行扫描器或访问目标。</p></div>
+  <div><div class="mini-label">PASSIVE IMPORT</div><h1>被动结果导入</h1><p>导入已有 SnowLens、SnowRelay、Burp、Nmap、Nuclei 结果并映射为 SnowEdge 项目数据。此功能只解析上传文件，不会执行扫描器或访问目标。</p></div>
   <div class="scope-badge"><span class="status-dot ok"></span>被动解析 · Scope 过滤 · 不执行外部命令</div>
 </div>
 
@@ -12,7 +12,7 @@
   <div><b>Burp XML</b><small>导入请求结构与 Issue；敏感请求头仍走加密存储。</small></div>
   <div><b>Nuclei JSONL</b><small>导入 Finding 元数据；不会把原始请求/响应直接复制到 Evidence。</small></div>
   <div><b>HAR / Postman / OpenAPI</b><small>生成 Endpoint、Parameter 和 Stored Request；非 GET/HEAD 只保存，不自动重放。</small></div>
-  <div><b>SnowRelay 联动包</b><small>先在浏览器本地预览，再按 Scope 导入资产、服务、候选 Finding 与 Evidence；拒绝口令明文。</small></div>
+  <div><b>Snow 工具链联动包</b><small>支持 SnowLens 与 SnowRelay；先在浏览器本地预览，再按 Scope 导入候选 Finding 与 Evidence，并拒绝口令明文。</small></div>
 </div>
 
 <section class="panel">
@@ -21,7 +21,7 @@
     <div>
       <label>结果类型</label>
       <select name="import_type" class="select-control" id="importType" required>
-        <option value="snowforge_json">SnowRelay → SnowEdge 联动包</option>
+        <option value="snowforge_json">SnowLens / SnowRelay → SnowEdge 联动包</option>
         <option value="burp_xml">Burp XML / HTTP History / Issues</option>
         <option value="nmap_xml">Nmap XML</option>
         <option value="nuclei_jsonl">Nuclei JSONL</option>
@@ -94,7 +94,7 @@
     try {
       const data = JSON.parse(await selected.text());
       const records = Array.isArray(data.records) ? data.records : null;
-      if (data.schema !== 'snowedge-import/1' || !records || !data.producer || !['SnowRelay', 'SnowForge'].includes(data.producer.name)) {
+      if (data.schema !== 'snowedge-import/1' || !records || !data.producer || !['SnowLens', 'SnowRelay', 'SnowForge'].includes(data.producer.name)) {
         throw new Error('格式或生产者标识不正确');
       }
       if (records.some(row => row && String(row.password || '').trim())) {
@@ -116,7 +116,7 @@
   type.form.addEventListener('submit', event => {
     if (type.value === 'snowforge_json' && !validSnowForgePackage) {
       event.preventDefault();
-      setPreview('请先选择并通过预览检查的 SnowRelay 联动包。', false);
+      setPreview('请先选择并通过预览检查的 Snow 工具链联动包。', false);
     }
   });
   inspectPackage();

@@ -70,3 +70,47 @@ def test_snowforge_package_rejects_plaintext_password():
             raise AssertionError("plaintext password package should be rejected")
     finally:
         db.close()
+
+
+def test_snowlens_package_imports_candidate_finding_and_evidence():
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        project = Project(name="SnowLens Bridge", scope_text="example.test")
+        db.add(project)
+        db.commit()
+        db.refresh(project)
+        package = {
+            "schema": "snowedge-import/1",
+            "producer": {"name": "SnowLens", "version": "1.1.0"},
+            "record_count": 1,
+            "sensitive_fields": {"password_included": False, "evidence_masked": True},
+            "records": [{
+                "asset": "example.test",
+                "port": "443",
+                "protocol": "tcp",
+                "service": "https",
+                "severity": "high",
+                "title": "JWT-like token",
+                "description": "SnowLens 前端信息暴露候选。",
+                "evidence": "eyJa****************2345",
+                "recommendation": "人工确认并轮换真实凭据。",
+                "risk_type": "secret",
+                "match_reason": "rule=secret.jwt; confidence=high",
+                "credential_status": "未执行凭据测试",
+                "source": {"platform": "SnowLens", "file": "app.js.map", "sheet": "Finding", "row": "17"},
+            }],
+        }
+        batch = import_snowforge_json(
+            db,
+            project,
+            "snowlens-results.snowedge.json",
+            json.dumps(package, ensure_ascii=False).encode("utf-8"),
+        )
+        assert batch.status == "done"
+        finding = db.query(Finding).filter_by(project_id=project.id, source="snowlens_import").one()
+        assert finding.finding_state == "candidate"
+        evidence = db.query(Evidence).filter_by(finding_id=finding.id, kind="snowlens_exposure_signal").one()
+        assert "secret.jwt" in evidence.content
+    finally:
+        db.close()
